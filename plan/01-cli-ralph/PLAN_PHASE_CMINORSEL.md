@@ -83,16 +83,18 @@ Selection transforms Cminor to CminorSel by:
 
 ### Tasks
 
-- [ ] Create `pkg/selection/addressing.go`
-- [ ] Pattern matching for addressing modes:
-  - [ ] `base + constant` → `Aindexed`
-  - [ ] `base + index` → `Aindexed2`
-  - [ ] `base + index * scale` → `Ascaled` (x86)
-  - [ ] `global + offset` → `Aglobal`
-  - [ ] `stackptr + offset` → `Ainstack`
-- [ ] Handle nested address computations
-- [ ] Target-specific mode availability
-- [ ] Add tests for addressing mode selection
+- [x] Create `pkg/selection/addressing.go`
+- [x] Pattern matching for addressing modes:
+  - [x] `base + constant` → `Aindexed`
+  - [x] `base + index` → `Aindexed2`
+  - [x] `base + index << shift` → `Aindexed2shift` (ARM64 scaled)
+  - [x] `global + offset` → `Aglobal`
+  - [x] `stackptr + offset` → `Ainstack`
+- [x] Handle nested address computations
+- [x] Target-specific mode availability (ARM64)
+- [x] Add tests for addressing mode selection
+
+**Notes:** Created `pkg/selection/addressing.go` with SelectAddressing function that pattern-matches Cminor address expressions to CminorSel addressing modes. Supports all ARM64 modes: Aglobal (symbol+offset), Ainstack (stack slot), Aindexed2shift (scaled array access with shifts 0-3), Aindexed2 (base+index), Aindexed (base+offset), with fallback to Aindexed{0}. Tests cover all patterns including commutative cases.
 
 ## Milestone 4: Operator Selection
 
