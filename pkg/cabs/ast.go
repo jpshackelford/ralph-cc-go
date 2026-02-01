@@ -166,6 +166,11 @@ type Return struct {
 	Expr Expr // nil for bare return
 }
 
+// Computation represents an expression statement (expr;)
+type Computation struct {
+	Expr Expr
+}
+
 // Block represents a compound statement (block)
 type Block struct {
 	Items []Stmt
@@ -217,6 +222,9 @@ func (Cast) implCabsExpr() {}
 
 func (Return) implCabsNode() {}
 func (Return) implCabsStmt() {}
+
+func (Computation) implCabsNode() {}
+func (Computation) implCabsStmt() {}
 
 func (Block) implCabsNode() {}
 func (Block) implCabsStmt() {}

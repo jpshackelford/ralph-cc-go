@@ -87,9 +87,9 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 ## M3: Statements
 
 ### M3.1: Expression Statements
-- [ ] Parse expression followed by `;`
-- [ ] Add Computation (ExprStmt) AST node
-- [ ] Add tests for `f(); x = 1;`
+- [x] Parse expression followed by `;`
+- [x] Add Computation (ExprStmt) AST node
+- [x] Add tests for `f(); x = 1;`
 
 ### M3.2: If/Else Statements
 - [ ] Add If AST node

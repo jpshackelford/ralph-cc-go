@@ -987,6 +987,73 @@ func TestCastExpression(t *testing.T) {
 	}
 }
 
+func TestExpressionStatement(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"function call", "int f() { foo(); }"},
+		{"assignment", "int f() { x = 1; }"},
+		{"compound assignment", "int f() { x += 2; }"},
+		{"increment", "int f() { i++; }"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			if len(funDef.Body.Items) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(funDef.Body.Items))
+			}
+
+			_, ok := funDef.Body.Items[0].(cabs.Computation)
+			if !ok {
+				t.Fatalf("expected Computation, got %T", funDef.Body.Items[0])
+			}
+		})
+	}
+}
+
+func TestMultipleStatements(t *testing.T) {
+	input := `int f() { x = 1; y = 2; return x + y; }`
+
+	l := lexer.New(input)
+	p := New(l)
+	def := p.ParseDefinition()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	funDef := def.(cabs.FunDef)
+	if len(funDef.Body.Items) != 3 {
+		t.Fatalf("expected 3 statements, got %d", len(funDef.Body.Items))
+	}
+
+	// First two are expression statements
+	_, ok := funDef.Body.Items[0].(cabs.Computation)
+	if !ok {
+		t.Errorf("statement 0: expected Computation, got %T", funDef.Body.Items[0])
+	}
+	_, ok = funDef.Body.Items[1].(cabs.Computation)
+	if !ok {
+		t.Errorf("statement 1: expected Computation, got %T", funDef.Body.Items[1])
+	}
+
+	// Third is return
+	_, ok = funDef.Body.Items[2].(cabs.Return)
+	if !ok {
+		t.Errorf("statement 2: expected Return, got %T", funDef.Body.Items[2])
+	}
+}
+
 func TestCastPrecedence(t *testing.T) {
 	// Cast should have higher precedence than binary operators
 	input := "int f() { return (int)a + b; }"

@@ -163,10 +163,22 @@ func (p *Parser) parseStatement() cabs.Stmt {
 	case lexer.TokenReturn:
 		return p.parseReturnStatement()
 	default:
-		p.addError(fmt.Sprintf("unexpected token in statement: %s", p.curToken.Type))
-		p.nextToken()
+		// Expression statement: expr;
+		return p.parseExpressionStatement()
+	}
+}
+
+func (p *Parser) parseExpressionStatement() cabs.Stmt {
+	expr := p.parseExpression()
+	if expr == nil {
 		return nil
 	}
+
+	if !p.expect(lexer.TokenSemicolon) {
+		return nil
+	}
+
+	return cabs.Computation{Expr: expr}
 }
 
 func (p *Parser) parseReturnStatement() cabs.Stmt {
