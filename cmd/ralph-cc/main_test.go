@@ -37,7 +37,6 @@ func TestDebugFlagsWarnAndExit(t *testing.T) {
 	}{
 		{"dc", "dc"},
 		{"dasm", "dasm"},
-		{"dltl", "dltl"},
 		{"dmach", "dmach"},
 	}
 
@@ -444,6 +443,85 @@ func TestRTLOutputFilename(t *testing.T) {
 		got := rtlOutputFilename(tt.input)
 		if got != tt.want {
 			t.Errorf("rtlOutputFilename(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestDLTLFlag(t *testing.T) {
+	// Create a temporary test file
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.c")
+	content := `int add(int a, int b) { return a + b; }`
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	resetDebugFlags()
+
+	var out, errOut bytes.Buffer
+	cmd := newRootCmd(&out, &errOut)
+	cmd.SetArgs([]string{"--dltl", testFile})
+	err := cmd.Execute()
+
+	if err != nil {
+		t.Errorf("expected no error for -dltl, got %v", err)
+	}
+
+	output := out.String()
+	// Check that it contains LTL function output
+	if !strings.Contains(output, "add(") {
+		t.Errorf("expected output to contain 'add(', got %q", output)
+	}
+	// Check for LTL-specific output (entry point)
+	if !strings.Contains(output, "entry:") {
+		t.Errorf("expected output to contain 'entry:', got %q", output)
+	}
+	// Check for LTL-specific instructions (Lop, Lbranch, Lreturn)
+	if !strings.Contains(output, "Lop(") && !strings.Contains(output, "Lreturn") {
+		t.Errorf("expected output to contain LTL instructions, got %q", output)
+	}
+}
+
+func TestDLTLCreatesOutputFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.c")
+	content := "int main() { return 0; }"
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	resetDebugFlags()
+
+	var out, errOut bytes.Buffer
+	cmd := newRootCmd(&out, &errOut)
+	cmd.SetArgs([]string{"--dltl", testFile})
+	err := cmd.Execute()
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Check that the .ltl file was created
+	outputFile := filepath.Join(tmpDir, "test.ltl")
+	if _, err := os.Stat(outputFile); os.IsNotExist(err) {
+		t.Errorf("expected output file %s to be created", outputFile)
+	}
+}
+
+func TestLTLOutputFilename(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"test.c", "test.ltl"},
+		{"path/to/file.c", "path/to/file.ltl"},
+		{"noext", "noext.ltl"},
+	}
+
+	for _, tt := range tests {
+		got := ltlOutputFilename(tt.input)
+		if got != tt.want {
+			t.Errorf("ltlOutputFilename(%q) = %q, want %q", tt.input, got, tt.want)
 		}
 	}
 }
