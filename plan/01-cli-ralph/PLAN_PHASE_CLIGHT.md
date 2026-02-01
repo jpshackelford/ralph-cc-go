@@ -104,7 +104,7 @@ Clight simplifies CompCert C by:
 ### Tasks
 
 - [ ] Add `-dclight` flag implementation in CLI
-- [ ] Create `pkg/clight/printer.go` matching CompCert output format
+- [x] Create `pkg/clight/printer.go` matching CompCert output format
 - [ ] Create `testdata/clight/` directory with test cases
 - [ ] Create `testdata/clight.yaml` for parameterized tests
 - [ ] Test against CompCert output (using container-use)
