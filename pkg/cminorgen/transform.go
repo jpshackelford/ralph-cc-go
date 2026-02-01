@@ -284,12 +284,16 @@ func (t *Transformer) transformSig(s *csharpminor.Sig) *cminor.Sig {
 }
 
 // typeDescriptor returns a string descriptor for a type.
-// This is a simplified version - a full implementation would handle all types.
+// Uses the type's String() method if available.
 func typeDescriptor(t interface{}) string {
 	if t == nil {
 		return "void"
 	}
-	return fmt.Sprintf("%T", t)
+	// Use Stringer interface if available
+	if s, ok := t.(fmt.Stringer); ok {
+		return s.String()
+	}
+	return "any"
 }
 
 // TransformFunction translates a Csharpminor function to a Cminor function.

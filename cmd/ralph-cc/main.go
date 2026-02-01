@@ -10,6 +10,8 @@ import (
 	"github.com/raymyers/ralph-cc/pkg/cabs"
 	"github.com/raymyers/ralph-cc/pkg/clight"
 	"github.com/raymyers/ralph-cc/pkg/clightgen"
+	"github.com/raymyers/ralph-cc/pkg/cminor"
+	"github.com/raymyers/ralph-cc/pkg/cminorgen"
 	"github.com/raymyers/ralph-cc/pkg/csharpminor"
 	"github.com/raymyers/ralph-cc/pkg/cshmgen"
 	"github.com/raymyers/ralph-cc/pkg/lexer"
@@ -39,14 +41,13 @@ type debugFlagInfo struct {
 }
 
 // debugFlags maps flag names to descriptions for unimplemented warnings
-// Note: dparse and dclight are handled separately as they're now implemented
+// Note: dparse, dclight, dcsharpminor, and dcminor are handled separately as they're implemented
 var debugFlags = map[string]debugFlagInfo{
-	"dc":      {&dC, "dump CompCert C"},
-	"dasm":    {&dAsm, "dump assembly"},
-	"dcminor": {&dCminor, "dump Cminor"},
-	"drtl":    {&dRTL, "dump RTL"},
-	"dltl":    {&dLTL, "dump LTL"},
-	"dmach":   {&dMach, "dump Mach"},
+	"dc":    {&dC, "dump CompCert C"},
+	"dasm":  {&dAsm, "dump assembly"},
+	"drtl":  {&dRTL, "dump RTL"},
+	"dltl":  {&dLTL, "dump LTL"},
+	"dmach": {&dMach, "dump Mach"},
 }
 
 // ErrNotImplemented indicates a feature is not yet implemented
@@ -134,6 +135,11 @@ CompCert design with the goal of equivalent output on each IR.`,
 			// Handle -dcsharpminor: transform to Csharpminor and dump
 			if dCsharpminor {
 				return doCsharpminor(filename, out, errOut)
+			}
+
+			// Handle -dcminor: transform to Cminor and dump
+			if dCminor {
+				return doCminor(filename, out, errOut)
 			}
 
 			fmt.Fprintf(errOut, "ralph-cc: compiling %s\n", filename)
@@ -317,4 +323,64 @@ func csharpminorOutputFilename(filename string) string {
 		return filename[:len(filename)-len(ext)] + ".csharpminor"
 	}
 	return filename + ".csharpminor"
+}
+
+// doCminor transforms the file to Cminor and writes output to .cminor file
+func doCminor(filename string, out, errOut io.Writer) error {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(errOut, "ralph-cc: error reading %s: %v\n", filename, err)
+		return err
+	}
+
+	// Parse
+	l := lexer.New(string(content))
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		for _, e := range p.Errors() {
+			fmt.Fprintf(errOut, "%s: %s\n", filename, e)
+		}
+		return fmt.Errorf("parsing failed with %d errors", len(p.Errors()))
+	}
+
+	// Transform to Clight
+	clightProg := clightgen.TranslateProgram(program)
+
+	// Transform to Csharpminor
+	csharpminorProg := cshmgen.TranslateProgram(clightProg)
+
+	// Transform to Cminor
+	cminorProg := cminorgen.TransformProgram(csharpminorProg)
+
+	// Compute output filename: input.c -> input.cminor
+	outputFilename := cminorOutputFilename(filename)
+
+	// Create output file
+	outFile, err := os.Create(outputFilename)
+	if err != nil {
+		fmt.Fprintf(errOut, "ralph-cc: error creating %s: %v\n", outputFilename, err)
+		return err
+	}
+	defer outFile.Close()
+
+	// Print the Cminor AST to the file
+	printer := cminor.NewPrinter(outFile)
+	printer.PrintProgram(cminorProg)
+
+	// Also print to stdout for convenience
+	printer = cminor.NewPrinter(out)
+	printer.PrintProgram(cminorProg)
+
+	return nil
+}
+
+// cminorOutputFilename returns the output filename for -dcminor
+func cminorOutputFilename(filename string) string {
+	ext := ".c"
+	if strings.HasSuffix(filename, ext) {
+		return filename[:len(filename)-len(ext)] + ".cminor"
+	}
+	return filename + ".cminor"
 }

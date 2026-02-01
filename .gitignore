@@ -5,6 +5,7 @@ bin/
 *.parsed.c
 *.light.c
 *.csharpminor
+*.cminor
 *.rtl.*
 *.ltl
 *.mach

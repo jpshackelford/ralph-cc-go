@@ -124,12 +124,14 @@ Cminorgen transforms Csharpminor to Cminor by:
 
 ### Tasks
 
-- [ ] Add `-dcminor` flag implementation
-- [ ] Create `pkg/cminor/printer.go` matching CompCert output format
+- [x] Add `-dcminor` flag implementation
+- [x] Create `pkg/cminor/printer.go` matching CompCert output format
 - [ ] Create test cases in `testdata/cminor/`
 - [ ] Create `testdata/cminor.yaml` for parameterized tests
 - [ ] Test against CompCert output (using container-use)
 - [ ] Document any intentional deviations
+
+**Notes:** CLI integration complete. `-dcminor` flag wired to full pipeline (parse → Clight → Csharpminor → Cminor) with printer outputting to `.cminor` file. Printer follows CompCert format with quoted function names, stack/var declarations, and typed operators. Type descriptors use ctypes String() method for readable output. Parameterized YAML tests and CompCert comparison deferred as separate verification task.
 
 ## Test Strategy
 
