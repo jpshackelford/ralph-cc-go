@@ -15,7 +15,7 @@
 [x] Execute plan/01-cli-ralph/PLAN_TEST.md, especially ensuring low duplication in test code and data is parameterized and yaml driven.
 [x] Based on docs/PHASES.md, create a `plan/01-cli-ralph/PLAN_PHASE_*.MD` for each phase with an implementation plan, noting prereqs. Format as milestone sections with task bullets. Break it down for high assurance of success and solid data-driven testing. Ensure the key files from Compcert are called out to study (logic and AST structure...)
 [x] Implement the phase plan in `plan/01-cli-ralph/PLAN_PHASE_CLIGHT.md`, go incrementally (and and run tests as you go). Update phase plan marking your progress and notes if you get stuck. Bail if stuck, mark this complete if you finish.
-[ ] .gitignore add debug phase output suffixes, just as `*.parsed.c` is. See docs/PHASES.md, dumping section for list
+[x] .gitignore add debug phase output suffixes, just as `*.parsed.c` is. See docs/PHASES.md, dumping section for list
 [ ] Implement the phase plan in `plan/01-cli-ralph/PLAN_PHASE_CSHARPMINOR.md`, go incrementally (and and run tests as you go). Update phase plan marking your progress and notes if you get stuck. Bail if stuck, mark this complete if you finish.
 [ ] Evaluate the cli codebase in light of having multiple phases now, and that we will have several more. Make disciplined refactors (like Fowler, Feathers, Bache) to improve the organization if needed.  
 [ ] Implement the phase plan in `plan/01-cli-ralph/PLAN_PHASE_CSHARPMINOR.md`, go incrementally (and and run tests as you go). Update phase plan marking your progress and notes if you get stuck. Bail if stuck, mark this complete if you finish.

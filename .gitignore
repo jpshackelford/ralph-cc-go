@@ -1,3 +1,11 @@
 plan/*/logs
 bin/
+
+# Debug phase output suffixes (from docs/PHASES.md)
 *.parsed.c
+*.light.c
+*.rtl.*
+*.ltl
+*.mach
+*.s
+*.json
