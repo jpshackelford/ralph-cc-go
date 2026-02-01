@@ -58,22 +58,24 @@ Selection transforms Cminor to CminorSel by:
 
 ### Tasks
 
-- [ ] Create `pkg/cminorsel/ops.go`
-- [ ] Define unary operations:
-  - [ ] `Ocast8signed`, `Ocast8unsigned`, `Ocast16signed`, `Ocast16unsigned`
-  - [ ] `Onegint`, `Onotint`, `Onegf`, `Oabsf`
-  - [ ] `Osingleoffloat`, `Ofloatofsingle`
-  - [ ] Integer/float conversions
-- [ ] Define binary operations:
-  - [ ] `Oadd`, `Osub`, `Omul`, `Omulhs`, `Omulhu`
-  - [ ] `Odiv`, `Odivu`, `Omod`, `Omodu`
-  - [ ] `Oand`, `Oor`, `Oxor`, `Oshl`, `Oshr`, `Oshru`
-  - [ ] `Oaddf`, `Osubf`, `Omulf`, `Odivf`
-  - [ ] `Ocmp` comparisons
-- [ ] Define combined operations (if targeting ARM64):
-  - [ ] `Oaddshift`, `Osubshift` (shift + add/sub)
-  - [ ] `Omulaadd`, `Omulasub` (multiply-accumulate)
-- [ ] Add tests for operator definitions
+- [x] Create `pkg/cminorsel/ops.go`
+- [x] Define unary operations:
+  - [x] `Ocast8signed`, `Ocast8unsigned`, `Ocast16signed`, `Ocast16unsigned`
+  - [x] `Onegint`, `Onotint`, `Onegf`, `Oabsf`
+  - [x] `Osingleoffloat`, `Ofloatofsingle`
+  - [x] Integer/float conversions
+- [x] Define binary operations:
+  - [x] `Oadd`, `Osub`, `Omul`, `Omulhs`, `Omulhu`
+  - [x] `Odiv`, `Odivu`, `Omod`, `Omodu`
+  - [x] `Oand`, `Oor`, `Oxor`, `Oshl`, `Oshr`, `Oshru`
+  - [x] `Oaddf`, `Osubf`, `Omulf`, `Odivf`
+  - [x] `Ocmp` comparisons
+- [x] Define combined operations (if targeting ARM64):
+  - [x] `Oaddshift`, `Osubshift` (shift + add/sub)
+  - [x] `Omulaadd`, `Omulasub` (multiply-accumulate)
+- [x] Add tests for operator definitions
+
+**Notes:** Created `pkg/cminorsel/ops.go` with MachUnaryOp, MachBinaryOp, MachTernaryOp types. Includes ARM64-specific ops (rbit, clz, cls, rev, sqrt, combined shift+arith, fused multiply-accumulate, bic/orn/eon, conditional select). Helper methods: IsCommutative, IsCompare, IsShiftCombined, IsFusedMultiply.
 
 ## Milestone 3: Addressing Mode Selection
 
