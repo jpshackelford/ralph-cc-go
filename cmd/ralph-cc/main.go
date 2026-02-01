@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/raymyers/ralph-cc/pkg/cabs"
 	"github.com/raymyers/ralph-cc/pkg/lexer"
@@ -118,7 +119,7 @@ CompCert design with the goal of equivalent output on each IR.`,
 	return rootCmd
 }
 
-// doParse parses the file and prints the AST
+// doParse parses the file and writes the AST to a .parsed.c file (matching CompCert behavior)
 func doParse(filename string, out, errOut io.Writer) error {
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -137,8 +138,34 @@ func doParse(filename string, out, errOut io.Writer) error {
 		return fmt.Errorf("parsing failed with %d errors", len(p.Errors()))
 	}
 
-	// Print the AST
-	printer := cabs.NewPrinter(out)
+	// Compute output filename: input.c -> input.parsed.c
+	outputFilename := parsedOutputFilename(filename)
+
+	// Create output file
+	outFile, err := os.Create(outputFilename)
+	if err != nil {
+		fmt.Fprintf(errOut, "ralph-cc: error creating %s: %v\n", outputFilename, err)
+		return err
+	}
+	defer outFile.Close()
+
+	// Print the AST to the file
+	printer := cabs.NewPrinter(outFile)
 	printer.PrintProgram(program)
+
+	// Also print to stdout for convenience
+	printer = cabs.NewPrinter(out)
+	printer.PrintProgram(program)
+
 	return nil
+}
+
+// parsedOutputFilename returns the output filename for -dparse
+// input.c -> input.parsed.c (matching CompCert convention)
+func parsedOutputFilename(filename string) string {
+	ext := ".c"
+	if strings.HasSuffix(filename, ext) {
+		return filename[:len(filename)-len(ext)] + ".parsed.c"
+	}
+	return filename + ".parsed.c"
 }

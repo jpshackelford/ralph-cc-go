@@ -159,6 +159,72 @@ func TestDParseFlagFileNotFound(t *testing.T) {
 	}
 }
 
+func TestDParseCreatesOutputFile(t *testing.T) {
+	// Create a temporary test file
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.c")
+	content := `int main() { return 42; }`
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	expectedOutputFile := filepath.Join(tmpDir, "test.parsed.c")
+
+	resetDebugFlags()
+
+	var out, errOut bytes.Buffer
+	cmd := newRootCmd(&out, &errOut)
+	cmd.SetArgs([]string{"--dparse", testFile})
+	err := cmd.Execute()
+
+	if err != nil {
+		t.Errorf("expected no error for -dparse, got %v", err)
+	}
+
+	// Check that output file was created
+	if _, err := os.Stat(expectedOutputFile); os.IsNotExist(err) {
+		t.Errorf("expected output file %s to be created", expectedOutputFile)
+	}
+
+	// Check output file contents match stdout
+	fileContent, err := os.ReadFile(expectedOutputFile)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	if out.String() != string(fileContent) {
+		t.Errorf("output file content doesn't match stdout\nStdout:\n%s\nFile:\n%s", out.String(), string(fileContent))
+	}
+
+	// Verify content looks correct
+	if !strings.Contains(string(fileContent), "int main()") {
+		t.Errorf("expected output file to contain 'int main()'")
+	}
+	if !strings.Contains(string(fileContent), "return 42") {
+		t.Errorf("expected output file to contain 'return 42'")
+	}
+}
+
+func TestParsedOutputFilename(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"test.c", "test.parsed.c"},
+		{"path/to/file.c", "path/to/file.parsed.c"},
+		{"/absolute/path.c", "/absolute/path.parsed.c"},
+		{"no_extension", "no_extension.parsed.c"},
+		{"multiple.dots.c", "multiple.dots.parsed.c"},
+	}
+
+	for _, tc := range tests {
+		result := parsedOutputFilename(tc.input)
+		if result != tc.expected {
+			t.Errorf("parsedOutputFilename(%q) = %q, want %q", tc.input, result, tc.expected)
+		}
+	}
+}
+
 func resetDebugFlags() {
 	dParse = false
 	dC = false
