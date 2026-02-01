@@ -6,17 +6,4 @@ This is an experiment in a long-horizon task using the OpenHands coding agent wi
 
 ## Ground rules
 
-Manual edits are allowed only on `README.md` and `plan/*`. The other commits must be by agents prompted using a `plan/*/RALPH.md`
-
-# Files
-
-
-plan/01-cli-ralph/*
-
-test/data/*.yaml
-
-# Setup notes
-
-openhands mcp add --transport stdio container-use container-use -- stdio
-
-Also should add tavily
+Manual edits are allowed only on `README.md` and `plan/*`. The other commits must be by agents prompted using a repeatable `plan/*/RALPH.md` and get task-specific instructions from the plans.
