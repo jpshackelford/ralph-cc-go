@@ -4,18 +4,26 @@
 
 Run simply with `openhands --headless -f plan/01-cli-ralph/RALPH.md`.
 
-Log more data to file:
+Log more data to file, and other conveniences:
 
 ```sh
 function ralph1() {
     TERM=dumb openhands --headless -f plan/01-cli-ralph/RALPH.md --json > plan/01-cli-ralph/logs/`date +%Y%m%d-%H-%M-%S`.log
 }
+
+function save_plan() {
+    git add plan && git diff --cached --quiet plan || git commit plan -m "Update plan"
+}
+
 function ralph4() {
+    save_plan
     ralph1
     ralph1
     ralph1
     ralph1
 }
+
+
 ```
 
 ## Watching
