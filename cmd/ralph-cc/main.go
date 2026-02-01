@@ -15,12 +15,15 @@ import (
 	"github.com/raymyers/ralph-cc/pkg/csharpminor"
 	"github.com/raymyers/ralph-cc/pkg/cshmgen"
 	"github.com/raymyers/ralph-cc/pkg/lexer"
+	"github.com/raymyers/ralph-cc/pkg/linearize"
 	"github.com/raymyers/ralph-cc/pkg/ltl"
+	"github.com/raymyers/ralph-cc/pkg/mach"
 	"github.com/raymyers/ralph-cc/pkg/parser"
 	"github.com/raymyers/ralph-cc/pkg/regalloc"
 	"github.com/raymyers/ralph-cc/pkg/rtl"
 	"github.com/raymyers/ralph-cc/pkg/rtlgen"
 	"github.com/raymyers/ralph-cc/pkg/selection"
+	"github.com/raymyers/ralph-cc/pkg/stacking"
 	"github.com/spf13/cobra"
 )
 
@@ -46,11 +49,10 @@ type debugFlagInfo struct {
 }
 
 // debugFlags maps flag names to descriptions for unimplemented warnings
-// Note: dparse, dclight, dcsharpminor, dcminor, drtl, and dltl are handled separately as they're implemented
+// Note: dparse, dclight, dcsharpminor, dcminor, drtl, dltl, and dmach are handled separately as they're implemented
 var debugFlags = map[string]debugFlagInfo{
-	"dc":    {&dC, "dump CompCert C"},
-	"dasm":  {&dAsm, "dump assembly"},
-	"dmach": {&dMach, "dump Mach"},
+	"dc":   {&dC, "dump CompCert C"},
+	"dasm": {&dAsm, "dump assembly"},
 }
 
 // ErrNotImplemented indicates a feature is not yet implemented
@@ -153,6 +155,11 @@ CompCert design with the goal of equivalent output on each IR.`,
 			// Handle -dltl: transform to LTL and dump
 			if dLTL {
 				return doLTL(filename, out, errOut)
+			}
+
+			// Handle -dmach: transform to Mach and dump
+			if dMach {
+				return doMach(filename, out, errOut)
 			}
 
 			fmt.Fprintf(errOut, "ralph-cc: compiling %s\n", filename)
@@ -533,4 +540,80 @@ func ltlOutputFilename(filename string) string {
 		return filename[:len(filename)-len(ext)] + ".ltl"
 	}
 	return filename + ".ltl"
+}
+
+// doMach transforms the file to Mach and writes output to .mach file
+func doMach(filename string, out, errOut io.Writer) error {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(errOut, "ralph-cc: error reading %s: %v\n", filename, err)
+		return err
+	}
+
+	// Parse
+	l := lexer.New(string(content))
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		for _, e := range p.Errors() {
+			fmt.Fprintf(errOut, "%s: %s\n", filename, e)
+		}
+		return fmt.Errorf("parsing failed with %d errors", len(p.Errors()))
+	}
+
+	// Transform to Clight
+	clightProg := clightgen.TranslateProgram(program)
+
+	// Transform to Csharpminor
+	csharpminorProg := cshmgen.TranslateProgram(clightProg)
+
+	// Transform to Cminor
+	cminorProg := cminorgen.TransformProgram(csharpminorProg)
+
+	// Transform to CminorSel
+	selCtx := selection.NewSelectionContext(nil, nil)
+	cminorselProg := selCtx.SelectProgram(*cminorProg)
+
+	// Transform to RTL
+	rtlProg := rtlgen.TranslateProgram(cminorselProg)
+
+	// Transform to LTL
+	ltlProg := regalloc.TransformProgram(rtlProg)
+
+	// Transform to Linear
+	linearProg := linearize.TransformProgram(ltlProg)
+
+	// Transform to Mach
+	machProg := stacking.TransformProgram(linearProg)
+
+	// Compute output filename: input.c -> input.mach
+	outputFilename := machOutputFilename(filename)
+
+	// Create output file
+	outFile, err := os.Create(outputFilename)
+	if err != nil {
+		fmt.Fprintf(errOut, "ralph-cc: error creating %s: %v\n", outputFilename, err)
+		return err
+	}
+	defer outFile.Close()
+
+	// Print the Mach AST to the file
+	printer := mach.NewPrinter(outFile)
+	printer.PrintProgram(machProg)
+
+	// Also print to stdout for convenience
+	printer = mach.NewPrinter(out)
+	printer.PrintProgram(machProg)
+
+	return nil
+}
+
+// machOutputFilename returns the output filename for -dmach
+func machOutputFilename(filename string) string {
+	ext := ".c"
+	if strings.HasSuffix(filename, ext) {
+		return filename[:len(filename)-len(ext)] + ".mach"
+	}
+	return filename + ".mach"
 }

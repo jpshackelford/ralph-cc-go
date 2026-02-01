@@ -24,8 +24,9 @@ type (
 
 // Re-export commonly used operations from rtl for testing
 type (
-	Oadd  = rtl.Oadd
-	Omove = rtl.Omove
+	Oadd     = rtl.Oadd
+	Oaddlimm = rtl.Oaddlimm
+	Omove    = rtl.Omove
 )
 
 // Re-export condition codes from rtl for testing

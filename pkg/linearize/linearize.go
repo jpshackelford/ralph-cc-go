@@ -8,6 +8,43 @@ import (
 	"github.com/raymyers/ralph-cc/pkg/ltl"
 )
 
+// TransformProgram transforms an entire LTL program to Linear
+func TransformProgram(prog *ltl.Program) *linear.Program {
+	linearProg := &linear.Program{
+		Globals: make([]linear.GlobVar, len(prog.Globals)),
+	}
+
+	// Copy globals
+	for i, g := range prog.Globals {
+		linearProg.Globals[i] = linear.GlobVar{
+			Name: g.Name,
+			Size: g.Size,
+			Init: g.Init,
+		}
+	}
+
+	// Transform each function
+	for _, fn := range prog.Functions {
+		linearFn := Transform(&fn)
+		linearProg.Functions = append(linearProg.Functions, *linearFn)
+	}
+
+	return linearProg
+}
+
+// Transform applies all linearization passes to a single function:
+// 1. Linearize (CFG to sequential)
+// 2. Tunnel (shortcut jump chains)
+// 3. CleanupLabels (remove unused labels)
+// 4. ComputeStackSize
+func Transform(fn *ltl.Function) *linear.Function {
+	result := Linearize(fn)
+	Tunnel(result)
+	CleanupLabels(result)
+	ComputeStackSize(result)
+	return result
+}
+
 // Linearize transforms an LTL function to Linear code.
 // It orders blocks via reverse postorder and adds explicit branches where needed.
 func Linearize(fn *ltl.Function) *linear.Function {

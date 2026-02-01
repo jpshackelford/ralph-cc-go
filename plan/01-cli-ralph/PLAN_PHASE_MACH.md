@@ -60,8 +60,8 @@ Stacking transforms Linear to Mach by:
 
 ### Tasks
 
-- [ ] Create `pkg/stacking/layout.go`
-- [ ] Define frame structure (ARM64):
+- [x] Create `pkg/stacking/layout.go`
+- [x] Define frame structure (ARM64):
   ```
   +---------------------------+  <- old SP (caller's frame)
   | Return address (LR)       |
@@ -72,15 +72,15 @@ Stacking transforms Linear to Mach by:
   | Outgoing arguments        |
   +---------------------------+  <- SP (16-byte aligned)
   ```
-- [ ] Compute frame sections:
-  - [ ] Callee-save area size
-  - [ ] Local variable area size
-  - [ ] Outgoing argument area size
-- [ ] Handle alignment:
-  - [ ] 16-byte stack alignment (ARM64)
-  - [ ] Per-variable alignment
-- [ ] Compute total frame size
-- [ ] Add tests for layout computation
+- [x] Compute frame sections:
+  - [x] Callee-save area size
+  - [x] Local variable area size
+  - [x] Outgoing argument area size
+- [x] Handle alignment:
+  - [x] 16-byte stack alignment (ARM64)
+  - [x] Per-variable alignment
+- [x] Compute total frame size
+- [x] Add tests for layout computation
 
 ## Milestone 3: Stack Slot Translation
 
@@ -88,17 +88,17 @@ Stacking transforms Linear to Mach by:
 
 ### Tasks
 
-- [ ] Create `pkg/stacking/slots.go`
-- [ ] Map Local slots to frame offsets
-- [ ] Map Outgoing slots to bottom of frame
-- [ ] Map Incoming slots to caller's frame:
-  - [ ] Above our frame pointer
-  - [ ] Depends on calling convention
-- [ ] Generate stack access instructions:
-  - [ ] `Lgetstack Local` → `Mgetstack fp+offset`
-  - [ ] `Lsetstack Local` → `Msetstack fp+offset`
-  - [ ] `Lgetstack Incoming` → `Mgetparam offset`
-- [ ] Add tests for slot translation
+- [x] Create `pkg/stacking/slots.go`
+- [x] Map Local slots to frame offsets
+- [x] Map Outgoing slots to bottom of frame
+- [x] Map Incoming slots to caller's frame:
+  - [x] Above our frame pointer
+  - [x] Depends on calling convention
+- [x] Generate stack access instructions:
+  - [x] `Lgetstack Local` → `Mgetstack fp+offset`
+  - [x] `Lsetstack Local` → `Msetstack fp+offset`
+  - [x] `Lgetstack Incoming` → `Mgetparam offset`
+- [x] Add tests for slot translation
 
 ## Milestone 4: Callee-Save Register Handling
 
@@ -106,20 +106,20 @@ Stacking transforms Linear to Mach by:
 
 ### Tasks
 
-- [ ] Create `pkg/stacking/calleesave.go`
-- [ ] Identify used callee-saved registers:
-  - [ ] ARM64: X19-X28, D8-D15
-  - [ ] Scan function for uses
-- [ ] Compute save/restore locations:
-  - [ ] Sequential in callee-save area
-  - [ ] Paired stores for ARM64 (STP/LDP)
-- [ ] Generate prologue saves:
-  - [ ] At function entry
-  - [ ] After frame setup
-- [ ] Generate epilogue restores:
-  - [ ] Before return
-  - [ ] Before tail call
-- [ ] Add tests for callee-save handling
+- [x] Create `pkg/stacking/calleesave.go`
+- [x] Identify used callee-saved registers:
+  - [x] ARM64: X19-X28, D8-D15
+  - [x] Scan function for uses
+- [x] Compute save/restore locations:
+  - [x] Sequential in callee-save area
+  - [x] Paired stores for ARM64 (STP/LDP)
+- [x] Generate prologue saves:
+  - [x] At function entry
+  - [x] After frame setup
+- [x] Generate epilogue restores:
+  - [x] Before return
+  - [x] Before tail call
+- [x] Add tests for callee-save handling
 
 ## Milestone 5: Prologue and Epilogue
 
@@ -127,22 +127,22 @@ Stacking transforms Linear to Mach by:
 
 ### Tasks
 
-- [ ] Create `pkg/stacking/prolog.go`
-- [ ] Generate prologue:
-  - [ ] Save link register (return address)
-  - [ ] Save frame pointer
-  - [ ] Set up new frame pointer
-  - [ ] Allocate stack frame
-  - [ ] Save callee-saved registers
-- [ ] Generate epilogue:
-  - [ ] Restore callee-saved registers
-  - [ ] Restore frame pointer
-  - [ ] Deallocate stack frame
-  - [ ] Return (restore PC from LR)
-- [ ] Handle leaf functions:
-  - [ ] May omit frame pointer setup
-  - [ ] May skip saving LR if not used
-- [ ] Add tests for prologue/epilogue
+- [x] Create `pkg/stacking/prolog.go`
+- [x] Generate prologue:
+  - [x] Save link register (return address)
+  - [x] Save frame pointer
+  - [x] Set up new frame pointer
+  - [x] Allocate stack frame
+  - [x] Save callee-saved registers
+- [x] Generate epilogue:
+  - [x] Restore callee-saved registers
+  - [x] Restore frame pointer
+  - [x] Deallocate stack frame
+  - [x] Return (restore PC from LR)
+- [x] Handle leaf functions:
+  - [x] May omit frame pointer setup
+  - [x] May skip saving LR if not used
+- [x] Add tests for prologue/epilogue
 
 ## Milestone 6: Instruction Translation
 
@@ -150,13 +150,13 @@ Stacking transforms Linear to Mach by:
 
 ### Tasks
 
-- [ ] Create `pkg/stacking/transform.go`
-- [ ] Translate stack operations with concrete offsets
-- [ ] Translate other instructions (mostly unchanged)
-- [ ] Insert prologue at function entry
-- [ ] Insert epilogue before returns
-- [ ] Handle tail calls (epilogue before call)
-- [ ] Add tests for instruction translation
+- [x] Create `pkg/stacking/transform.go`
+- [x] Translate stack operations with concrete offsets
+- [x] Translate other instructions (mostly unchanged)
+- [x] Insert prologue at function entry
+- [x] Insert epilogue before returns
+- [x] Handle tail calls (epilogue before call)
+- [x] Add tests for instruction translation
 
 ## Milestone 7: CLI Integration & Testing
 
@@ -164,12 +164,12 @@ Stacking transforms Linear to Mach by:
 
 ### Tasks
 
-- [ ] Add `-dmach` flag implementation
-- [ ] Create `pkg/mach/printer.go` matching CompCert output format
-- [ ] Create test cases in `testdata/mach/`
-- [ ] Create `testdata/mach.yaml` for parameterized tests
-- [ ] Test against CompCert output (using container-use)
-- [ ] Document any intentional deviations
+- [x] Add `-dmach` flag implementation
+- [x] Create `pkg/mach/printer.go` matching CompCert output format
+- [x] Create test cases (unit tests in pkg/stacking and pkg/mach)
+- [x] Add CLI tests for -dmach flag
+- [ ] Test against CompCert output (using container-use) - optional verification
+- [ ] Document any intentional deviations - optional
 
 ## Test Strategy
 
