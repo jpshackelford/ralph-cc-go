@@ -97,20 +97,20 @@ Cshmgen transforms Clight to Csharpminor by:
 
 ### Tasks
 
-- [ ] Create `pkg/cshmgen/stmt.go`
-- [ ] Translate assignment:
-  - [ ] Simple assignment → `Sstore`
-  - [ ] Temporary assignment → `Sset`
-- [ ] Translate control flow:
-  - [ ] if/else → `Sifthenelse`
-  - [ ] while/for → `Sloop` + `Sexit`
-  - [ ] break → `Sexit n` (with nesting depth)
-  - [ ] continue → appropriate `Sexit`
-  - [ ] return → `Sreturn`
-- [ ] Translate switch statements
-- [ ] Translate function calls
-- [ ] Handle blocks and sequencing
-- [ ] Add tests for statement translation
+- [x] Create `pkg/cshmgen/stmt.go`
+- [x] Translate assignment:
+  - [x] Simple assignment → `Sstore`
+  - [x] Temporary assignment → `Sset`
+- [x] Translate control flow:
+  - [x] if/else → `Sifthenelse`
+  - [x] while/for → `Sloop` + `Sexit`
+  - [x] break → `Sexit n` (with nesting depth)
+  - [x] continue → appropriate `Sexit`
+  - [x] return → `Sreturn`
+- [x] Translate switch statements
+- [x] Translate function calls
+- [x] Handle blocks and sequencing
+- [x] Add tests for statement translation
 
 ## Milestone 5: CLI Integration & Testing
 

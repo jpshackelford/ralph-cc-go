@@ -151,7 +151,7 @@ func (t *ExprTranslator) translateAddrof(e clight.Eaddrof) csharpminor.Expr {
 		return t.TranslateExpr(inner.Ptr)
 	case clight.Efield:
 		// &(s.f) - address of struct field
-		return t.translateFieldAddr(inner)
+		return t.TranslateFieldAddr(inner)
 	}
 	panic("cannot take address of expression")
 }
@@ -159,13 +159,13 @@ func (t *ExprTranslator) translateAddrof(e clight.Eaddrof) csharpminor.Expr {
 // translateField translates struct field access (s.f).
 // This becomes address computation + Eload.
 func (t *ExprTranslator) translateField(e clight.Efield) csharpminor.Expr {
-	addr := t.translateFieldAddr(e)
+	addr := t.TranslateFieldAddr(e)
 	chunk := csharpminor.ChunkForType(e.Typ)
 	return csharpminor.Eload{Chunk: chunk, Addr: addr}
 }
 
-// translateFieldAddr computes the address of a struct field.
-func (t *ExprTranslator) translateFieldAddr(e clight.Efield) csharpminor.Expr {
+// TranslateFieldAddr computes the address of a struct field.
+func (t *ExprTranslator) TranslateFieldAddr(e clight.Efield) csharpminor.Expr {
 	// Get the address of the base struct
 	baseAddr := t.translateLvalueAddr(e.Arg)
 
@@ -194,7 +194,7 @@ func (t *ExprTranslator) translateLvalueAddr(e clight.Expr) csharpminor.Expr {
 	case clight.Ederef:
 		return t.TranslateExpr(expr.Ptr)
 	case clight.Efield:
-		return t.translateFieldAddr(expr)
+		return t.TranslateFieldAddr(expr)
 	}
 	panic("not an l-value")
 }
