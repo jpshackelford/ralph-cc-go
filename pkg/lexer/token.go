@@ -24,9 +24,13 @@ const (
 	TokenFor      // for
 	TokenBreak    // break
 	TokenContinue // continue
+	TokenSwitch   // switch
+	TokenCase     // case
+	TokenDefault  // default
+	TokenGoto     // goto
 	TokenTypedef  // typedef
-	TokenStruct  // struct
-	TokenSizeof  // sizeof
+	TokenStruct   // struct
+	TokenSizeof   // sizeof
 
 	// Operators
 	TokenPlus      // +
@@ -98,6 +102,10 @@ var tokenNames = map[TokenType]string{
 	TokenFor:           "for",
 	TokenBreak:         "break",
 	TokenContinue:      "continue",
+	TokenSwitch:        "switch",
+	TokenCase:          "case",
+	TokenDefault:       "default",
+	TokenGoto:          "goto",
 	TokenTypedef:       "typedef",
 	TokenStruct:        "struct",
 	TokenSizeof:        "sizeof",
@@ -165,19 +173,23 @@ type Token struct {
 
 // keywords maps keyword strings to token types
 var keywords = map[string]TokenType{
-	"int":     TokenInt_,
-	"void":    TokenVoid,
-	"return":  TokenReturn,
-	"if":      TokenIf,
-	"else":    TokenElse,
-	"while":   TokenWhile,
+	"int":      TokenInt_,
+	"void":     TokenVoid,
+	"return":   TokenReturn,
+	"if":       TokenIf,
+	"else":     TokenElse,
+	"while":    TokenWhile,
 	"do":       TokenDo,
 	"for":      TokenFor,
 	"break":    TokenBreak,
 	"continue": TokenContinue,
+	"switch":   TokenSwitch,
+	"case":     TokenCase,
+	"default":  TokenDefault,
+	"goto":     TokenGoto,
 	"typedef":  TokenTypedef,
-	"struct":  TokenStruct,
-	"sizeof":  TokenSizeof,
+	"struct":   TokenStruct,
+	"sizeof":   TokenSizeof,
 }
 
 // LookupIdent returns the token type for an identifier (keyword or IDENT)

@@ -110,9 +110,9 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 - [x] Add tests for for loops
 
 ### M3.5: Switch Statements
-- [ ] Add Switch, Case, Default AST nodes
-- [ ] Parse `switch (expr) { case x: ... default: ... }` (add keywords to lexer)
-- [ ] Add tests for switch
+- [x] Add Switch, Case, Default AST nodes
+- [x] Parse `switch (expr) { case x: ... default: ... }` (add keywords to lexer)
+- [x] Add tests for switch
 
 ### M3.6: Break/Continue
 - [x] Add Break, Continue AST nodes
@@ -120,9 +120,9 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 - [x] Add tests
 
 ### M3.7: Goto/Labels
-- [ ] Add Goto, Label AST nodes
-- [ ] Parse `goto label;`, `label:`
-- [ ] Add tests for goto/labels
+- [x] Add Goto, Label AST nodes
+- [x] Parse `goto label;`, `label:`
+- [x] Add tests for goto/labels
 
 ---
 

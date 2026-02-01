@@ -1354,6 +1354,154 @@ func TestCastPrecedence(t *testing.T) {
 	}
 }
 
+func TestSwitchStatement(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		numCases int
+	}{
+		{"simple switch", "int f() { switch (x) { case 1: return 1; } }", 1},
+		{"switch with default", "int f() { switch (x) { case 1: return 1; default: return 0; } }", 2},
+		{"multiple cases", "int f() { switch (x) { case 1: return 1; case 2: return 2; default: return 0; } }", 3},
+		{"fallthrough", "int f() { switch (x) { case 1: case 2: return 2; } }", 2},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			if len(funDef.Body.Items) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(funDef.Body.Items))
+			}
+
+			switchStmt, ok := funDef.Body.Items[0].(cabs.Switch)
+			if !ok {
+				t.Fatalf("expected Switch, got %T", funDef.Body.Items[0])
+			}
+
+			if len(switchStmt.Cases) != tt.numCases {
+				t.Errorf("expected %d cases, got %d", tt.numCases, len(switchStmt.Cases))
+			}
+		})
+	}
+}
+
+func TestSwitchWithBreak(t *testing.T) {
+	input := `int f() { switch (x) { case 1: x = 1; break; case 2: x = 2; break; default: x = 0; } }`
+
+	l := lexer.New(input)
+	p := New(l)
+	def := p.ParseDefinition()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	funDef := def.(cabs.FunDef)
+	switchStmt := funDef.Body.Items[0].(cabs.Switch)
+
+	if len(switchStmt.Cases) != 3 {
+		t.Fatalf("expected 3 cases, got %d", len(switchStmt.Cases))
+	}
+
+	// First case should have 2 statements (assignment and break)
+	if len(switchStmt.Cases[0].Stmts) != 2 {
+		t.Errorf("case 0: expected 2 statements, got %d", len(switchStmt.Cases[0].Stmts))
+	}
+
+	// Verify first case expression is 1
+	c0Expr := switchStmt.Cases[0].Expr.(cabs.Constant)
+	if c0Expr.Value != 1 {
+		t.Errorf("case 0 expr: expected 1, got %d", c0Expr.Value)
+	}
+
+	// Default case (last) should have Expr == nil
+	if switchStmt.Cases[2].Expr != nil {
+		t.Error("default case should have nil Expr")
+	}
+}
+
+func TestGotoStatement(t *testing.T) {
+	input := `int f() { goto done; x = 1; done: return 0; }`
+
+	l := lexer.New(input)
+	p := New(l)
+	def := p.ParseDefinition()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	funDef := def.(cabs.FunDef)
+	if len(funDef.Body.Items) != 3 {
+		t.Fatalf("expected 3 statements, got %d", len(funDef.Body.Items))
+	}
+
+	// First statement is goto
+	gotoStmt, ok := funDef.Body.Items[0].(cabs.Goto)
+	if !ok {
+		t.Fatalf("expected Goto, got %T", funDef.Body.Items[0])
+	}
+	if gotoStmt.Label != "done" {
+		t.Errorf("expected label 'done', got %q", gotoStmt.Label)
+	}
+
+	// Third statement is a label
+	labelStmt, ok := funDef.Body.Items[2].(cabs.Label)
+	if !ok {
+		t.Fatalf("expected Label, got %T", funDef.Body.Items[2])
+	}
+	if labelStmt.Name != "done" {
+		t.Errorf("expected label name 'done', got %q", labelStmt.Name)
+	}
+
+	// Label should wrap a return statement
+	_, ok = labelStmt.Stmt.(cabs.Return)
+	if !ok {
+		t.Fatalf("expected Return inside label, got %T", labelStmt.Stmt)
+	}
+}
+
+func TestLabelStatement(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		labelName string
+	}{
+		{"simple label", "int f() { loop: x++; }", "loop"},
+		{"label with return", "int f() { end: return 0; }", "end"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			labelStmt, ok := funDef.Body.Items[0].(cabs.Label)
+			if !ok {
+				t.Fatalf("expected Label, got %T", funDef.Body.Items[0])
+			}
+
+			if labelStmt.Name != tt.labelName {
+				t.Errorf("expected label name %q, got %q", tt.labelName, labelStmt.Name)
+			}
+		})
+	}
+}
+
 // exprString returns a string representation of an expression for testing
 func exprString(e cabs.Expr) string {
 	switch expr := e.(type) {

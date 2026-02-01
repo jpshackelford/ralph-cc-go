@@ -170,12 +170,23 @@ func (p *Parser) parseStatement() cabs.Stmt {
 		return p.parseDoWhileStatement()
 	case lexer.TokenFor:
 		return p.parseForStatement()
+	case lexer.TokenSwitch:
+		return p.parseSwitchStatement()
 	case lexer.TokenBreak:
 		return p.parseBreakStatement()
 	case lexer.TokenContinue:
 		return p.parseContinueStatement()
+	case lexer.TokenGoto:
+		return p.parseGotoStatement()
 	case lexer.TokenLBrace:
 		return p.parseBlock()
+	case lexer.TokenIdent:
+		// Check for label: identifier followed by ':'
+		if p.peekTokenIs(lexer.TokenColon) {
+			return p.parseLabelStatement()
+		}
+		// Expression statement
+		return p.parseExpressionStatement()
 	default:
 		// Expression statement: expr;
 		return p.parseExpressionStatement()
@@ -346,6 +357,105 @@ func (p *Parser) parseContinueStatement() cabs.Stmt {
 	}
 
 	return cabs.Continue{}
+}
+
+func (p *Parser) parseSwitchStatement() cabs.Stmt {
+	p.nextToken() // consume 'switch'
+
+	if !p.expect(lexer.TokenLParen) {
+		return nil
+	}
+
+	expr := p.parseExpression()
+	if expr == nil {
+		return nil
+	}
+
+	if !p.expect(lexer.TokenRParen) {
+		return nil
+	}
+
+	if !p.curTokenIs(lexer.TokenLBrace) {
+		p.addError(fmt.Sprintf("expected '{' after switch condition, got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume '{'
+
+	var cases []cabs.SwitchCase
+	for !p.curTokenIs(lexer.TokenRBrace) && !p.curTokenIs(lexer.TokenEOF) {
+		c := p.parseSwitchCase()
+		if c != nil {
+			cases = append(cases, *c)
+		}
+	}
+
+	p.nextToken() // consume '}'
+
+	return cabs.Switch{Expr: expr, Cases: cases}
+}
+
+func (p *Parser) parseSwitchCase() *cabs.SwitchCase {
+	var caseExpr cabs.Expr
+
+	if p.curTokenIs(lexer.TokenCase) {
+		p.nextToken() // consume 'case'
+		caseExpr = p.parseExpression()
+		if caseExpr == nil {
+			return nil
+		}
+	} else if p.curTokenIs(lexer.TokenDefault) {
+		p.nextToken() // consume 'default'
+		// caseExpr remains nil for default
+	} else {
+		p.addError(fmt.Sprintf("expected 'case' or 'default' in switch, got %s", p.curToken.Type))
+		return nil
+	}
+
+	if !p.expect(lexer.TokenColon) {
+		return nil
+	}
+
+	// Parse statements until we hit case, default, or }
+	var stmts []cabs.Stmt
+	for !p.curTokenIs(lexer.TokenCase) && !p.curTokenIs(lexer.TokenDefault) &&
+		!p.curTokenIs(lexer.TokenRBrace) && !p.curTokenIs(lexer.TokenEOF) {
+		stmt := p.parseStatement()
+		if stmt != nil {
+			stmts = append(stmts, stmt)
+		}
+	}
+
+	return &cabs.SwitchCase{Expr: caseExpr, Stmts: stmts}
+}
+
+func (p *Parser) parseGotoStatement() cabs.Stmt {
+	p.nextToken() // consume 'goto'
+
+	if !p.curTokenIs(lexer.TokenIdent) {
+		p.addError(fmt.Sprintf("expected label name after goto, got %s", p.curToken.Type))
+		return nil
+	}
+	label := p.curToken.Literal
+	p.nextToken() // consume label
+
+	if !p.expect(lexer.TokenSemicolon) {
+		return nil
+	}
+
+	return cabs.Goto{Label: label}
+}
+
+func (p *Parser) parseLabelStatement() cabs.Stmt {
+	label := p.curToken.Literal
+	p.nextToken() // consume label name
+	p.nextToken() // consume ':'
+
+	stmt := p.parseStatement()
+	if stmt == nil {
+		return nil
+	}
+
+	return cabs.Label{Name: label, Stmt: stmt}
 }
 
 func (p *Parser) parseReturnStatement() cabs.Stmt {

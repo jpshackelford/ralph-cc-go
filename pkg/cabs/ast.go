@@ -204,6 +204,29 @@ type Break struct{}
 // Continue represents a continue statement
 type Continue struct{}
 
+// Switch represents a switch statement
+type Switch struct {
+	Expr  Expr
+	Cases []SwitchCase
+}
+
+// SwitchCase represents a case or default in a switch
+type SwitchCase struct {
+	Expr  Expr  // nil for default case
+	Stmts []Stmt
+}
+
+// Goto represents a goto statement
+type Goto struct {
+	Label string
+}
+
+// Label represents a label statement
+type Label struct {
+	Name string
+	Stmt Stmt
+}
+
 // Block represents a compound statement (block)
 type Block struct {
 	Items []Stmt
@@ -276,6 +299,15 @@ func (Break) implCabsStmt() {}
 
 func (Continue) implCabsNode() {}
 func (Continue) implCabsStmt() {}
+
+func (Switch) implCabsNode() {}
+func (Switch) implCabsStmt() {}
+
+func (Goto) implCabsNode() {}
+func (Goto) implCabsStmt() {}
+
+func (Label) implCabsNode() {}
+func (Label) implCabsStmt() {}
 
 func (Block) implCabsNode() {}
 func (Block) implCabsStmt() {}
