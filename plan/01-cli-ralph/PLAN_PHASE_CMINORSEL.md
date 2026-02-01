@@ -102,17 +102,19 @@ Selection transforms Cminor to CminorSel by:
 
 ### Tasks
 
-- [ ] Create `pkg/selection/ops.go`
-- [ ] Implement integer operation selection:
-  - [ ] Basic arithmetic (add, sub, mul, div)
-  - [ ] Shifts (shl, shr, shru)
-  - [ ] Bitwise (and, or, xor)
-- [ ] Implement floating-point operation selection
-- [ ] Implement comparison selection
-- [ ] Implement combined operation recognition:
-  - [ ] Shift + add → `Oaddshift`
-  - [ ] Load + op → memory operand (x86)
-- [ ] Add tests for operator selection
+- [x] Create `pkg/selection/ops.go`
+- [x] Implement integer operation selection:
+  - [x] Basic arithmetic (add, sub, mul, div)
+  - [x] Shifts (shl, shr, shru)
+  - [x] Bitwise (and, or, xor)
+- [x] Implement floating-point operation selection
+- [x] Implement comparison selection
+- [x] Implement combined operation recognition:
+  - [x] Shift + add → `Oaddshift`
+  - [x] Load + op → memory operand (x86) — N/A for ARM64 target
+- [x] Add tests for operator selection
+
+**Notes:** Created `pkg/selection/ops.go` with SelectUnaryOp, SelectBinaryOp, TrySelectCombinedOp, and SelectComparison functions. Comprehensive tests cover all unary ops (negation, bitwise not, casts, conversions), all binary ops (arithmetic, bitwise, shifts, comparisons), combined shift+arith patterns (ARM64 addshift, subshift, andshift, orshift, xorshift for both int and long), and comparison helpers (NegateComparison, SwapComparison). Combined ops check both operand positions for commutative operations.
 
 ## Milestone 5: Expression Selection
 
