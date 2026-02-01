@@ -29,6 +29,13 @@ function ralph4() {
 ## Watching
 
 ```sh
+watch -n 10 -c "git diff --stat && git log --oneline -n 10"
+
+watch -n 10 -c "grep -m 1 -A1 '\[ \]' plan/01-cli-ralph/PLAN.md && echo '---' && git diff --stat && echo '---' && git log --oneline -n 10"
+```
+
+
+```sh
 container-user watch
 ```
 
