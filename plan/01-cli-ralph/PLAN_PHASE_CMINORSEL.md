@@ -33,21 +33,24 @@ Selection transforms Cminor to CminorSel by:
 
 ### Tasks
 
-- [ ] Create `pkg/cminorsel/ast.go` with node interfaces
-- [ ] Define condition type (comparisons for branching)
-- [ ] Define addressing modes (target-specific):
-  - [ ] `Aindexed` (base + offset)
-  - [ ] `Aindexed2` (base + index)
-  - [ ] `Ascaled` (base + index * scale)
-  - [ ] `Aglobal` (global symbol + offset)
-  - [ ] `Ainstack` (stack slot)
-- [ ] Define CminorSel expressions:
-  - [ ] `Evar`, `Econst` (like Cminor)
-  - [ ] `Eunop`, `Ebinop` (machine-level operators)
-  - [ ] `Eload` (with addressing mode)
-  - [ ] `Econdition` (conditional expression)
-- [ ] Define CminorSel statements (similar to Cminor with extensions)
-- [ ] Add tests for AST construction
+- [x] Create `pkg/cminorsel/ast.go` with node interfaces
+- [x] Define condition type (comparisons for branching)
+- [x] Define addressing modes (target-specific):
+  - [x] `Aindexed` (base + offset)
+  - [x] `Aindexed2` (base + index)
+  - [x] `Aindexed2shift` (base + index << shift) - ARM64 scaled addressing
+  - [x] `Aindexed2ext` (base + extended index) - ARM64 sign/zero extended
+  - [x] `Aglobal` (global symbol + offset)
+  - [x] `Ainstack` (stack slot)
+- [x] Define CminorSel expressions:
+  - [x] `Evar`, `Econst` (like Cminor)
+  - [x] `Eunop`, `Ebinop` (machine-level operators)
+  - [x] `Eload` (with addressing mode)
+  - [x] `Econdition` (conditional expression)
+  - [x] `Elet`, `Eletvar` (let-binding with de Bruijn indices)
+  - [x] `Eaddshift`, `Esubshift` (ARM64 combined operations)
+- [x] Define CminorSel statements (similar to Cminor with extensions)
+- [x] Add tests for AST construction
 
 ## Milestone 2: Machine Operators (Target-Independent)
 
