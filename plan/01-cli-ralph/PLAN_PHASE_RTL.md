@@ -153,35 +153,37 @@ RTLgen transforms CminorSel to RTL by:
 
 **Notes:** Created ExprTranslator with backward-chaining instruction generation. Handles Evar, Econst, Eunop, Ebinop, Eload, Econdition, Elet/Eletvar, Eaddshift/Esubshift. TranslateCond for branching with CondAnd/CondOr short-circuit evaluation. Let binding stack for de Bruijn indices. 14 test functions verify expression translation.
 
-## Milestone 6: Statement Translation
+## Milestone 6: Statement Translation ✅
 
 **Goal:** Translate CminorSel statements to RTL CFG
 
 ### Tasks
 
-- [ ] Create `pkg/rtlgen/stmt.go`
-- [ ] Translate assignment:
-  - [ ] Evaluate RHS
-  - [ ] Store to stack or keep in register
-- [ ] Translate store:
-  - [ ] Evaluate address
-  - [ ] Evaluate value
-  - [ ] Generate `Istore`
-- [ ] Translate if/else:
-  - [ ] Evaluate condition
-  - [ ] Generate `Icond`
-  - [ ] Recursively translate branches
-- [ ] Translate loops:
-  - [ ] Create header node
-  - [ ] Generate body CFG
-  - [ ] Back edge to header
-- [ ] Translate function calls:
-  - [ ] Evaluate arguments
-  - [ ] Generate `Icall`
-- [ ] Translate return:
-  - [ ] Evaluate return expression
-  - [ ] Generate `Ireturn`
-- [ ] Add tests for statement translation
+- [x] Create `pkg/rtlgen/stmt.go`
+- [x] Translate assignment:
+  - [x] Evaluate RHS
+  - [x] Store to stack or keep in register
+- [x] Translate store:
+  - [x] Evaluate address
+  - [x] Evaluate value
+  - [x] Generate `Istore`
+- [x] Translate if/else:
+  - [x] Evaluate condition
+  - [x] Generate `Icond`
+  - [x] Recursively translate branches
+- [x] Translate loops:
+  - [x] Create header node
+  - [x] Generate body CFG
+  - [x] Back edge to header
+- [x] Translate function calls:
+  - [x] Evaluate arguments
+  - [x] Generate `Icall`
+- [x] Translate return:
+  - [x] Evaluate return expression
+  - [x] Generate `Ireturn`
+- [x] Add tests for statement translation
+
+**Notes:** Created StmtTranslator with all CminorSel statement types: Sskip, Sassign, Sstore, Scall, Stailcall, Sbuiltin, Sseq, Sifthenelse, Sloop, Sblock, Sexit, Sswitch (cascading if-else), Sreturn, Slabel, Sgoto. TranslateFunction and TranslateProgram for full program translation. 18 test functions verify all statement translation.
 
 ## Milestone 7: CLI Integration & Testing
 
