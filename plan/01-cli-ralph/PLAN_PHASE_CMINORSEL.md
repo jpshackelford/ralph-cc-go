@@ -122,14 +122,16 @@ Selection transforms Cminor to CminorSel by:
 
 ### Tasks
 
-- [ ] Create `pkg/selection/expr.go`
-- [ ] Select addressing modes for loads
-- [ ] Select operators for arithmetic
-- [ ] Handle sizeof/alignof (should be constants by now)
-- [ ] Implement if-conversion:
-  - [ ] Simple `if (c) x else y` → conditional move
-  - [ ] Check profitability of if-conversion
-- [ ] Add tests for expression selection
+- [x] Create `pkg/selection/expr.go`
+- [x] Select addressing modes for loads
+- [x] Select operators for arithmetic
+- [x] Handle sizeof/alignof (should be constants by now)
+- [x] Implement if-conversion:
+  - [x] Simple `if (c) x else y` → conditional move
+  - [x] Check profitability of if-conversion
+- [x] Add tests for expression selection
+
+**Notes:** Created `pkg/selection/expr.go` with SelectionContext type holding globals and stack vars. Implements SelectExpr for all Cminor expression types (Evar, Econst, Eunop, Ebinop, Ecmp, Eload). Features: global vars become Oaddrsymbol, stack vars become Oaddrstack, combined shift+add/sub patterns recognized (ARM64 Eaddshift/Esubshift), loads use SelectAddressing for optimal addressing modes. Also implements SelectCondition for branch conditions and IsProfitableIfConversion heuristic for if-conversion decisions. Comprehensive tests cover all expression types, addressing modes, combined ops, conditions, and if-conversion profitability.
 
 ## Milestone 6: Statement Selection
 
