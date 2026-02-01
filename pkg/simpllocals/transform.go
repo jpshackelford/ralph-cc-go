@@ -159,6 +159,11 @@ func (t *Transformer) AnalyzeStmt(s cabs.Stmt) {
 			t.AnalyzeStmt(item)
 		}
 
+	case *cabs.Block:
+		for _, item := range stmt.Items {
+			t.AnalyzeStmt(item)
+		}
+
 	case cabs.DeclStmt:
 		for _, decl := range stmt.Decls {
 			if decl.Initializer != nil {

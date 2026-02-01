@@ -450,3 +450,45 @@ func TestSetNextTempID(t *testing.T) {
 		t.Errorf("expected temp ID 100, got %d", id)
 	}
 }
+
+func TestAnalyzeFunctionWithPointerBlock(t *testing.T) {
+	// Issue 1: FunDef.Body is *Block (pointer), but AnalyzeStmt only handled Block (value)
+	tr := New()
+
+	fn := &cabs.FunDef{
+		ReturnType: "int",
+		Name:       "test",
+		Body: &cabs.Block{
+			Items: []cabs.Stmt{
+				cabs.Computation{
+					Expr: cabs.Unary{Op: cabs.OpAddrOf, Expr: cabs.Variable{Name: "x"}},
+				},
+			},
+		},
+	}
+
+	tr.AnalyzeFunction(fn)
+
+	if !tr.IsAddressTaken("x") {
+		t.Error("expected x to be address-taken from function body (*Block)")
+	}
+}
+
+func TestAnalyzeStmtBlockPointer(t *testing.T) {
+	// Direct test for *cabs.Block case
+	tr := New()
+
+	block := &cabs.Block{
+		Items: []cabs.Stmt{
+			cabs.Computation{
+				Expr: cabs.Unary{Op: cabs.OpAddrOf, Expr: cabs.Variable{Name: "y"}},
+			},
+		},
+	}
+
+	tr.AnalyzeStmt(block)
+
+	if !tr.IsAddressTaken("y") {
+		t.Error("expected y to be address-taken from *cabs.Block")
+	}
+}
