@@ -58,13 +58,15 @@ Cminorgen transforms Csharpminor to Cminor by:
 
 ### Tasks
 
-- [ ] Create `pkg/cminorgen/stack.go`
-- [ ] Identify address-taken local variables
-- [ ] Compute stack slot assignments
-- [ ] Handle alignment requirements
-- [ ] Calculate total stack size
-- [ ] Generate stack access expressions
-- [ ] Add tests for stack layout
+- [x] Create `pkg/cminorgen/stack.go`
+- [x] Identify address-taken local variables
+- [x] Compute stack slot assignments
+- [x] Handle alignment requirements
+- [x] Calculate total stack size
+- [x] Generate stack access expressions
+- [x] Add tests for stack layout
+
+**Notes:** Implemented StackLayout, StackSlot types with ComputeStackLayout function. Natural alignment rules: 1-byte for char, 2-byte for short, 4-byte for int, 8-byte for long/pointer. Total frame aligned to 8 bytes (aarch64). FindAddressTaken scans statement tree for Eaddrof expressions referencing locals.
 
 ## Milestone 3: Variable Transformation
 
