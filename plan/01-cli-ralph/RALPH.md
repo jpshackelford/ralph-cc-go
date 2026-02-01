@@ -5,6 +5,10 @@ Execute these steps.
 3. Verify (including `make check`).
 4. If complete: update PLAN to mark complete, commit.
 
+## Environments
+
+User `container-use` cli if you need to install anything.
+
 ## Tech Guidelines
 
 We are building a C compiler frontend CLI, optimized for testing of the compilation passes rather than practical use.
