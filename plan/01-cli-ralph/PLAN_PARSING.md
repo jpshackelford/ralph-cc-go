@@ -208,7 +208,7 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 ### M6.3: CLI Integration
 - [x] Wire parser to `-dparse` flag
 - [x] Output AST in format matching CompCert's `-dparse`
-- [ ] Add integration tests comparing with CompCert output
+- [x] Add integration tests comparing with CompCert output
 
 ### M6.4: Error Recovery
 - [x] Implement panic-mode recovery

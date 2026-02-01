@@ -1,0 +1,186 @@
+# Integration tests comparing ralph-cc -dparse output with CompCert ccomp -dparse
+# These tests require CompCert to be built and available
+
+tests:
+  - name: "empty main"
+    input: |
+      int main() {}
+
+  - name: "return constant"
+    input: |
+      int f() { return 42; }
+
+  - name: "return arithmetic"
+    input: |
+      int f() { return 1 + 2 * 3; }
+
+  - name: "function with parameters"
+    input: |
+      int add(int a, int b) { return a + b; }
+
+  - name: "multiple functions"
+    input: |
+      int helper() { return 1; }
+      int main() { return helper(); }
+
+  - name: "local variable"
+    input: |
+      int f() { int x = 5; return x; }
+
+  - name: "if statement"
+    input: |
+      int f(int x) { if (x) return 1; return 0; }
+
+  - name: "if-else"
+    input: |
+      int f(int x) { if (x > 0) return 1; else return -1; }
+
+  - name: "while loop"
+    input: |
+      int f(int n) { int s = 0; while (n > 0) { s = s + n; n = n - 1; } return s; }
+
+  - name: "for loop"
+    input: |
+      int f(int n) { int s = 0; for (int i = 0; i < n; i++) s = s + i; return s; }
+
+  - name: "pointer dereference"
+    input: |
+      int f(int *p) { return *p; }
+
+  - name: "address of"
+    input: |
+      int f() { int x = 1; int *p = &x; return *p; }
+
+  - name: "array access"
+    input: |
+      int f(int *a) { return a[0] + a[1]; }
+
+  - name: "struct member access"
+    input: |
+      struct Point { int x; int y; };
+      int getx(struct Point p) { return p.x; }
+
+  - name: "struct pointer access"
+    input: |
+      struct Point { int x; int y; };
+      int getx(struct Point *p) { return p->x; }
+
+  - name: "typedef"
+    input: |
+      typedef int myint;
+      myint f() { return 0; }
+
+  - name: "enum"
+    input: |
+      enum Color { RED, GREEN, BLUE };
+      int f() { return RED; }
+
+  - name: "union"
+    input: |
+      union Value { int i; float f; };
+
+  - name: "switch statement"
+    input: |
+      int f(int x) { switch (x) { case 1: return 1; case 2: return 2; default: return 0; } }
+
+  - name: "ternary operator"
+    input: |
+      int f(int x) { return x > 0 ? x : -x; }
+
+  - name: "compound assignment"
+    input: |
+      int f(int x) { x += 1; x *= 2; return x; }
+
+  - name: "increment decrement"
+    input: |
+      int f(int x) { ++x; x++; --x; x--; return x; }
+
+  - name: "comma operator"
+    input: |
+      int f() { int x; return (x = 1, x + 1); }
+
+  - name: "sizeof expression"
+    input: |
+      int f() { int x; return sizeof x; }
+
+  - name: "sizeof type"
+    input: |
+      int f() { return sizeof(int); }
+
+  - name: "cast expression"
+    input: |
+      int f(float x) { return (int)x; }
+
+  - name: "bitwise operators"
+    input: |
+      int f(int a, int b) { return (a & b) | (a ^ b); }
+
+  - name: "shift operators"
+    input: |
+      int f(int x) { return (x << 1) | (x >> 1); }
+
+  - name: "logical operators"
+    input: |
+      int f(int a, int b) { return a && b || !a; }
+
+  - name: "comparison operators"
+    input: |
+      int f(int a, int b) { return (a < b) + (a <= b) + (a > b) + (a >= b) + (a == b) + (a != b); }
+
+  - name: "do-while loop"
+    input: |
+      int f(int n) { int s = 0; do { s++; } while (s < n); return s; }
+
+  - name: "break in loop"
+    input: |
+      int f(int n) { int i = 0; while (1) { if (i >= n) break; i++; } return i; }
+
+  - name: "continue in loop"
+    input: |
+      int f(int n) { int s = 0; for (int i = 0; i < n; i++) { if (i % 2) continue; s++; } return s; }
+
+  - name: "goto label"
+    input: |
+      int f(int x) { if (x) goto done; x = 1; done: return x; }
+
+  - name: "nested blocks"
+    input: |
+      int f() { int x = 0; { int y = 1; x = y; } return x; }
+
+  - name: "pointer to pointer"
+    input: |
+      int f(int **pp) { return **pp; }
+
+  - name: "array declaration"
+    input: |
+      int f() { int a[10]; a[0] = 1; return a[0]; }
+
+  - name: "multi-dimensional array"
+    input: |
+      int f() { int m[3][3]; m[0][0] = 1; return m[0][0]; }
+
+  - name: "function pointer declaration"
+    input: |
+      int add(int a, int b) { return a + b; }
+      int f() { int (*fp)(int, int) = add; return fp(1, 2); }
+    skip: "Function pointer syntax may differ"
+
+  - name: "static variable"
+    input: |
+      int f() { static int x = 0; return x++; }
+
+  - name: "const qualifier"
+    input: |
+      int f(const int x) { return x; }
+
+  - name: "volatile qualifier"
+    input: |
+      int f() { volatile int x = 0; return x; }
+
+  - name: "void function"
+    input: |
+      void f() { return; }
+
+  - name: "multiple declarations"
+    input: |
+      int f() { int x = 1, y = 2, z = 3; return x + y + z; }
