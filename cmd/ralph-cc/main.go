@@ -65,10 +65,33 @@ func main() {
 
 func run() int {
 	rootCmd := newRootCmd(os.Stdout, os.Stderr)
+	// Normalize CompCert-style single-dash flags to double-dash for pflag compatibility
+	rootCmd.SetArgs(normalizeFlags(os.Args[1:]))
 	if err := rootCmd.Execute(); err != nil {
 		return 1
 	}
 	return 0
+}
+
+// debugFlagNames lists all debug flags that should accept single-dash style (CompCert compatibility)
+var debugFlagNames = []string{"dparse", "dc", "dasm", "dclight", "dcminor", "drtl", "dltl", "dmach"}
+
+// normalizeFlags converts CompCert-style single-dash flags like -dparse to --dparse
+func normalizeFlags(args []string) []string {
+	result := make([]string, len(args))
+	for i, arg := range args {
+		// Check if it's a single-dash debug flag (e.g., -dparse)
+		for _, flagName := range debugFlagNames {
+			if arg == "-"+flagName {
+				result[i] = "--" + flagName
+				break
+			}
+		}
+		if result[i] == "" {
+			result[i] = arg
+		}
+	}
+	return result
 }
 
 func newRootCmd(out, errOut io.Writer) *cobra.Command {

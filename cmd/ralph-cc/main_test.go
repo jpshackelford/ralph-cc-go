@@ -235,3 +235,63 @@ func resetDebugFlags() {
 	dLTL = false
 	dMach = false
 }
+
+func TestNormalizeFlags(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		expected []string
+	}{
+		{
+			name:     "single-dash dparse",
+			input:    []string{"-dparse", "test.c"},
+			expected: []string{"--dparse", "test.c"},
+		},
+		{
+			name:     "double-dash dparse unchanged",
+			input:    []string{"--dparse", "test.c"},
+			expected: []string{"--dparse", "test.c"},
+		},
+		{
+			name:     "single-dash dc",
+			input:    []string{"-dc", "test.c"},
+			expected: []string{"--dc", "test.c"},
+		},
+		{
+			name:     "mixed flags",
+			input:    []string{"test.c", "-dparse", "-dc"},
+			expected: []string{"test.c", "--dparse", "--dc"},
+		},
+		{
+			name:     "no flags",
+			input:    []string{"test.c"},
+			expected: []string{"test.c"},
+		},
+		{
+			name:     "other flags unchanged",
+			input:    []string{"-o", "output.o", "test.c"},
+			expected: []string{"-o", "output.o", "test.c"},
+		},
+		{
+			name:     "all debug flags",
+			input:    []string{"-dparse", "-dc", "-dasm", "-dclight", "-dcminor", "-drtl", "-dltl", "-dmach"},
+			expected: []string{"--dparse", "--dc", "--dasm", "--dclight", "--dcminor", "--drtl", "--dltl", "--dmach"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := normalizeFlags(tc.input)
+			if len(result) != len(tc.expected) {
+				t.Errorf("normalizeFlags(%v) = %v, want %v", tc.input, result, tc.expected)
+				return
+			}
+			for i := range result {
+				if result[i] != tc.expected[i] {
+					t.Errorf("normalizeFlags(%v) = %v, want %v", tc.input, result, tc.expected)
+					return
+				}
+			}
+		})
+	}
+}
