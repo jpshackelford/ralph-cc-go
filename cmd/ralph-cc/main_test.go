@@ -19,7 +19,7 @@ func TestDebugFlagsExist(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cmd := newRootCmd(&out, &errOut)
 
-	expectedFlags := []string{"dparse", "dc", "dasm", "dclight", "dcminor", "drtl", "dltl", "dmach"}
+	expectedFlags := []string{"dparse", "dc", "dasm", "dclight", "dcsharpminor", "dcminor", "drtl", "dltl", "dmach"}
 	for _, flagName := range expectedFlags {
 		flag := cmd.Flags().Lookup(flagName)
 		if flag == nil {
@@ -225,6 +225,81 @@ func TestClightOutputFilename(t *testing.T) {
 	}
 }
 
+func TestDCsharpminorFlag(t *testing.T) {
+	// Create a temporary test file
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.c")
+	content := `int add(int a, int b) { return a + b; }`
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	resetDebugFlags()
+
+	var out, errOut bytes.Buffer
+	cmd := newRootCmd(&out, &errOut)
+	cmd.SetArgs([]string{"--dcsharpminor", testFile})
+	err := cmd.Execute()
+
+	if err != nil {
+		t.Errorf("expected no error for -dcsharpminor, got %v", err)
+	}
+
+	output := out.String()
+	// Check that it contains Csharpminor function output
+	if !strings.Contains(output, "int add(a, b)") {
+		t.Errorf("expected output to contain 'int add(a, b)', got %q", output)
+	}
+	// Check for Csharpminor-specific output (typed add operation)
+	if !strings.Contains(output, "add(") {
+		t.Errorf("expected output to contain 'add(' (typed add operation), got %q", output)
+	}
+}
+
+func TestDCsharpminorCreatesOutputFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.c")
+	content := "int main() { return 0; }"
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	resetDebugFlags()
+
+	var out, errOut bytes.Buffer
+	cmd := newRootCmd(&out, &errOut)
+	cmd.SetArgs([]string{"--dcsharpminor", testFile})
+	err := cmd.Execute()
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Check that the .csharpminor file was created
+	outputFile := filepath.Join(tmpDir, "test.csharpminor")
+	if _, err := os.Stat(outputFile); os.IsNotExist(err) {
+		t.Errorf("expected output file %s to be created", outputFile)
+	}
+}
+
+func TestCsharpminorOutputFilename(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"test.c", "test.csharpminor"},
+		{"path/to/file.c", "path/to/file.csharpminor"},
+		{"noext", "noext.csharpminor"},
+	}
+
+	for _, tt := range tests {
+		got := csharpminorOutputFilename(tt.input)
+		if got != tt.want {
+			t.Errorf("csharpminorOutputFilename(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
 func TestDParseFlagFileNotFound(t *testing.T) {
 	resetDebugFlags()
 
@@ -309,6 +384,7 @@ func resetDebugFlags() {
 	dC = false
 	dAsm = false
 	dClight = false
+	dCsharpminor = false
 	dCminor = false
 	dRTL = false
 	dLTL = false
@@ -353,8 +429,8 @@ func TestNormalizeFlags(t *testing.T) {
 		},
 		{
 			name:     "all debug flags",
-			input:    []string{"-dparse", "-dc", "-dasm", "-dclight", "-dcminor", "-drtl", "-dltl", "-dmach"},
-			expected: []string{"--dparse", "--dc", "--dasm", "--dclight", "--dcminor", "--drtl", "--dltl", "--dmach"},
+			input:    []string{"-dparse", "-dc", "-dasm", "-dclight", "-dcsharpminor", "-dcminor", "-drtl", "-dltl", "-dmach"},
+			expected: []string{"--dparse", "--dc", "--dasm", "--dclight", "--dcsharpminor", "--dcminor", "--drtl", "--dltl", "--dmach"},
 		},
 	}
 

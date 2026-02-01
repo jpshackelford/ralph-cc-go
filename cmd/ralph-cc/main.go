@@ -9,6 +9,8 @@ import (
 
 	"github.com/raymyers/ralph-cc/pkg/cabs"
 	"github.com/raymyers/ralph-cc/pkg/clight"
+	"github.com/raymyers/ralph-cc/pkg/csharpminor"
+	"github.com/raymyers/ralph-cc/pkg/cshmgen"
 	"github.com/raymyers/ralph-cc/pkg/ctypes"
 	"github.com/raymyers/ralph-cc/pkg/lexer"
 	"github.com/raymyers/ralph-cc/pkg/parser"
@@ -21,14 +23,15 @@ var version = "0.1.0"
 
 // Debug flags for dumping intermediate representations
 var (
-	dParse   bool
-	dC       bool
-	dAsm     bool
-	dClight  bool
-	dCminor  bool
-	dRTL     bool
-	dLTL     bool
-	dMach    bool
+	dParse       bool
+	dC           bool
+	dAsm         bool
+	dClight      bool
+	dCsharpminor bool
+	dCminor      bool
+	dRTL         bool
+	dLTL         bool
+	dMach        bool
 )
 
 // debugFlagInfo holds metadata for a debug flag
@@ -77,7 +80,7 @@ func run() int {
 }
 
 // debugFlagNames lists all debug flags that should accept single-dash style (CompCert compatibility)
-var debugFlagNames = []string{"dparse", "dc", "dasm", "dclight", "dcminor", "drtl", "dltl", "dmach"}
+var debugFlagNames = []string{"dparse", "dc", "dasm", "dclight", "dcsharpminor", "dcminor", "drtl", "dltl", "dmach"}
 
 // normalizeFlags converts CompCert-style single-dash flags like -dparse to --dparse
 func normalizeFlags(args []string) []string {
@@ -130,6 +133,11 @@ CompCert design with the goal of equivalent output on each IR.`,
 				return doClight(filename, out, errOut)
 			}
 
+			// Handle -dcsharpminor: transform to Csharpminor and dump
+			if dCsharpminor {
+				return doCsharpminor(filename, out, errOut)
+			}
+
 			fmt.Fprintf(errOut, "ralph-cc: compiling %s\n", filename)
 			return nil
 		},
@@ -142,6 +150,7 @@ CompCert design with the goal of equivalent output on each IR.`,
 	rootCmd.Flags().BoolVarP(&dC, "dc", "", false, "Dump CompCert C")
 	rootCmd.Flags().BoolVarP(&dAsm, "dasm", "", false, "Dump assembly")
 	rootCmd.Flags().BoolVarP(&dClight, "dclight", "", false, "Dump Clight")
+	rootCmd.Flags().BoolVarP(&dCsharpminor, "dcsharpminor", "", false, "Dump Csharpminor")
 	rootCmd.Flags().BoolVarP(&dCminor, "dcminor", "", false, "Dump Cminor")
 	rootCmd.Flags().BoolVarP(&dRTL, "drtl", "", false, "Dump RTL")
 	rootCmd.Flags().BoolVarP(&dLTL, "dltl", "", false, "Dump LTL")
@@ -253,6 +262,63 @@ func clightOutputFilename(filename string) string {
 		return filename[:len(filename)-len(ext)] + ".light.c"
 	}
 	return filename + ".light.c"
+}
+
+// doCsharpminor transforms the file to Csharpminor and writes output to .csharpminor file
+func doCsharpminor(filename string, out, errOut io.Writer) error {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(errOut, "ralph-cc: error reading %s: %v\n", filename, err)
+		return err
+	}
+
+	// Parse
+	l := lexer.New(string(content))
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		for _, e := range p.Errors() {
+			fmt.Fprintf(errOut, "%s: %s\n", filename, e)
+		}
+		return fmt.Errorf("parsing failed with %d errors", len(p.Errors()))
+	}
+
+	// Transform to Clight
+	clightProg := transformToClight(program)
+
+	// Transform to Csharpminor
+	csharpminorProg := cshmgen.TranslateProgram(clightProg)
+
+	// Compute output filename: input.c -> input.csharpminor
+	outputFilename := csharpminorOutputFilename(filename)
+
+	// Create output file
+	outFile, err := os.Create(outputFilename)
+	if err != nil {
+		fmt.Fprintf(errOut, "ralph-cc: error creating %s: %v\n", outputFilename, err)
+		return err
+	}
+	defer outFile.Close()
+
+	// Print the Csharpminor AST to the file
+	printer := csharpminor.NewPrinter(outFile)
+	printer.PrintProgram(csharpminorProg)
+
+	// Also print to stdout for convenience
+	printer = csharpminor.NewPrinter(out)
+	printer.PrintProgram(csharpminorProg)
+
+	return nil
+}
+
+// csharpminorOutputFilename returns the output filename for -dcsharpminor
+func csharpminorOutputFilename(filename string) string {
+	ext := ".c"
+	if strings.HasSuffix(filename, ext) {
+		return filename[:len(filename)-len(ext)] + ".csharpminor"
+	}
+	return filename + ".csharpminor"
 }
 
 // transformToClight transforms a Cabs program to a Clight program

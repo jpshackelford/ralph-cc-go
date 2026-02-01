@@ -118,11 +118,11 @@ Cshmgen transforms Clight to Csharpminor by:
 
 ### Tasks
 
-- [ ] Add `-dcsharpminor` flag implementation (note: CompCert doesn't have this flag, so this is optional)
-- [ ] Create `pkg/csharpminor/printer.go` for debugging output
-- [ ] Create test cases in `testdata/csharpminor/`
-- [ ] Add integration tests
-- [ ] Test full pipeline: C → Clight → Csharpminor
+- [x] Add `-dcsharpminor` flag implementation (note: CompCert doesn't have this flag, so this is optional)
+- [x] Create `pkg/csharpminor/printer.go` for debugging output
+- [x] Create test cases in `testdata/csharpminor/` (covered by unit tests in printer_test.go)
+- [x] Add integration tests (TestDCsharpminorFlag, TestDCsharpminorCreatesOutputFile)
+- [x] Test full pipeline: C → Clight → Csharpminor
 
 ## Test Strategy
 

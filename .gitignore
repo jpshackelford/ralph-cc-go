@@ -4,6 +4,7 @@ bin/
 # Debug phase output suffixes (from docs/PHASES.md)
 *.parsed.c
 *.light.c
+*.csharpminor
 *.rtl.*
 *.ltl
 *.mach
