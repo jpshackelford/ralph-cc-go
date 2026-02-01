@@ -92,13 +92,15 @@ Cminorgen transforms Csharpminor to Cminor by:
 
 ### Tasks
 
-- [ ] Create `pkg/cminorgen/switch.go`
-- [ ] Analyze switch case distribution
-- [ ] Generate jump table for dense cases
-- [ ] Generate binary search for sparse cases
-- [ ] Generate linear if-cascade for small switches
-- [ ] Handle default case properly
-- [ ] Add tests for switch transformation
+- [x] Create `pkg/cminorgen/switch.go`
+- [x] Analyze switch case distribution
+- [x] Generate jump table for dense cases
+- [x] Generate binary search for sparse cases
+- [x] Generate linear if-cascade for small switches
+- [x] Handle default case properly
+- [x] Add tests for switch transformation
+
+**Notes:** Implemented SwitchAnalysis with AnalyzeSwitch that sorts cases and computes density. Strategy selection follows CompCert approach: linear if-cascade for ≤4 cases, jump table for density ≥0.5, binary search otherwise. TransformSwitchLinear generates nested if-then-else, TransformSwitchBinary generates balanced search tree, TransformSwitchJumpTable normalizes to zero-based index and emits dense switch. All strategies tested with comprehensive unit tests.
 
 ## Milestone 5: Statement and Expression Translation
 
