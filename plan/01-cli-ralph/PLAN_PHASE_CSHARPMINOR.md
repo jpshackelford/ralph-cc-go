@@ -57,21 +57,21 @@ Cshmgen transforms Clight to Csharpminor by:
 
 ### Tasks
 
-- [ ] Create `pkg/cshmgen/operators.go`
-- [ ] Map unary operators by type:
-  - [ ] `Onegint`, `Onegf`, `Onegl`, `Onegs` (negation)
-  - [ ] `Onotint`, `Onotl` (bitwise not)
-  - [ ] `Ocast8signed`, `Ocast8unsigned`, etc. (casts)
-  - [ ] `Osingleoffloat`, `Ofloatofsingle` (float conversions)
-  - [ ] `Ointoffloat`, `Ofloatofint`, etc. (int/float conversions)
-- [ ] Map binary operators by type:
-  - [ ] `Oadd`, `Osub`, `Omul`, `Odiv` (int variants)
-  - [ ] `Oaddf`, `Osubf`, `Omulf`, `Odivf` (float variants)
-  - [ ] `Oaddl`, `Osubl`, `Omull`, `Odivl` (long variants)
-  - [ ] `Oand`, `Oor`, `Oxor`, `Oshl`, `Oshr`, `Oshru` (bitwise)
-  - [ ] `Ocmp`, `Ocmpu`, `Ocmpf`, `Ocmpl` (comparisons)
-- [ ] Handle pointer arithmetic (add/sub with scaling)
-- [ ] Add tests for operator translation
+- [x] Create `pkg/cshmgen/operators.go`
+- [x] Map unary operators by type:
+  - [x] `Onegint`, `Onegf`, `Onegl`, `Onegs` (negation)
+  - [x] `Onotint`, `Onotl` (bitwise not)
+  - [x] `Ocast8signed`, `Ocast8unsigned`, etc. (casts)
+  - [x] `Osingleoffloat`, `Ofloatofsingle` (float conversions)
+  - [x] `Ointoffloat`, `Ofloatofint`, etc. (int/float conversions)
+- [x] Map binary operators by type:
+  - [x] `Oadd`, `Osub`, `Omul`, `Odiv` (int variants)
+  - [x] `Oaddf`, `Osubf`, `Omulf`, `Odivf` (float variants)
+  - [x] `Oaddl`, `Osubl`, `Omull`, `Odivl` (long variants)
+  - [x] `Oand`, `Oor`, `Oxor`, `Oshl`, `Oshr`, `Oshru` (bitwise)
+  - [x] `Ocmp`, `Ocmpu`, `Ocmpf`, `Ocmpl` (comparisons)
+- [x] Handle pointer arithmetic (add/sub with scaling)
+- [x] Add tests for operator translation
 
 ## Milestone 3: Expression Translation
 
