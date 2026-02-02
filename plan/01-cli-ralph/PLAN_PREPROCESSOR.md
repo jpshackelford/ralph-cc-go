@@ -131,7 +131,7 @@ Directives start with `#` at the beginning of a line (after whitespace). The dir
 
 **Goal:** Implement macro definition storage and lookup
 
-**Status:** TODO
+**Status:** DONE
 
 ### Context
 
@@ -143,25 +143,25 @@ Macros can be redefined only to identical definitions.
 
 ### Tasks
 
-- [ ] Create `pkg/cpp/macro.go` for macro handling
-- [ ] Define macro representation:
-  - [ ] Name
-  - [ ] Parameters (for function-like macros)
-  - [ ] Replacement list (as tokens)
-  - [ ] Variadic flag (for `...` parameter)
-  - [ ] Source location (for error messages)
-- [ ] Implement macro table (name → macro)
-- [ ] Handle built-in macros:
-  - [ ] `__FILE__` - current filename
-  - [ ] `__LINE__` - current line number
-  - [ ] `__DATE__` - compilation date
-  - [ ] `__TIME__` - compilation time
-  - [ ] `__STDC__` - always 1
-  - [ ] `__STDC_VERSION__` - 201112L for C11
-- [ ] Validate macro redefinitions (must be identical)
-- [ ] Implement `#undef`
-- [ ] Handle `-D` and `-U` command line flags
-- [ ] Add tests for macro storage
+- [x] Create `pkg/cpp/macro.go` for macro handling
+- [x] Define macro representation:
+  - [x] Name
+  - [x] Parameters (for function-like macros)
+  - [x] Replacement list (as tokens)
+  - [x] Variadic flag (for `...` parameter)
+  - [x] Source location (for error messages)
+- [x] Implement macro table (name → macro)
+- [x] Handle built-in macros:
+  - [x] `__FILE__` - current filename
+  - [x] `__LINE__` - current line number
+  - [x] `__DATE__` - compilation date
+  - [x] `__TIME__` - compilation time
+  - [x] `__STDC__` - always 1
+  - [x] `__STDC_VERSION__` - 201112L for C11
+- [x] Validate macro redefinitions (must be identical)
+- [x] Implement `#undef`
+- [x] Handle `-D` and `-U` command line flags
+- [x] Add tests for macro storage
 
 ## Milestone 5: Macro Expansion
 
