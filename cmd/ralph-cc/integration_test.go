@@ -301,3 +301,89 @@ func TestE2EAsmYAML(t *testing.T) {
 		})
 	}
 }
+
+// TestIncludeDirective tests that #include directives work
+func TestIncludeDirective(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create include directory
+	includeDir := filepath.Join(tmpDir, "include")
+	if err := os.Mkdir(includeDir, 0755); err != nil {
+		t.Fatalf("failed to create include dir: %v", err)
+	}
+
+	// Create a header file (simple macro only, no function declarations)
+	headerContent := `#ifndef MYHEADER_H
+#define MYHEADER_H
+#define MY_CONSTANT 42
+#endif
+`
+	headerPath := filepath.Join(includeDir, "myheader.h")
+	if err := os.WriteFile(headerPath, []byte(headerContent), 0644); err != nil {
+		t.Fatalf("failed to write header: %v", err)
+	}
+
+	// Create source file that includes the header
+	sourceContent := `#include "myheader.h"
+int main() {
+    return MY_CONSTANT;
+}
+`
+	sourcePath := filepath.Join(tmpDir, "test.c")
+	if err := os.WriteFile(sourcePath, []byte(sourceContent), 0644); err != nil {
+		t.Fatalf("failed to write source: %v", err)
+	}
+
+	// Run ralph-cc with -I flag
+	resetDebugFlags()
+	includePaths = nil // Reset global state
+	var out, errOut bytes.Buffer
+	cmd := newRootCmd(&out, &errOut)
+	cmd.SetArgs([]string{"-I", includeDir, "--dparse", sourcePath})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("ralph-cc failed: %v\nStderr: %s", err, errOut.String())
+	}
+
+	output := out.String()
+
+	// The macro should be expanded to 42
+	if !strings.Contains(output, "return 42") {
+		t.Errorf("expected macro MY_CONSTANT to expand to 42\nGot:\n%s", output)
+	}
+
+	// Clean up global state
+	includePaths = nil
+}
+
+// TestPreprocessedFileExtension tests that .i files are not preprocessed
+func TestPreprocessedFileExtension(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a .i file (should be treated as already preprocessed)
+	// Note: #define should NOT be expanded since .i files skip preprocessing
+	sourceContent := `int main() {
+    return 42;
+}
+`
+	sourcePath := filepath.Join(tmpDir, "test.i")
+	if err := os.WriteFile(sourcePath, []byte(sourceContent), 0644); err != nil {
+		t.Fatalf("failed to write source: %v", err)
+	}
+
+	// Run ralph-cc - should work without preprocessing
+	resetDebugFlags()
+	includePaths = nil
+	var out, errOut bytes.Buffer
+	cmd := newRootCmd(&out, &errOut)
+	cmd.SetArgs([]string{"--dparse", sourcePath})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("ralph-cc failed: %v\nStderr: %s", err, errOut.String())
+	}
+
+	output := out.String()
+	if !strings.Contains(output, "return 42") {
+		t.Errorf("expected output to contain 'return 42'\nGot:\n%s", output)
+	}
+
+	includePaths = nil
+}

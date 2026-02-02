@@ -21,6 +21,7 @@ import (
 	"github.com/raymyers/ralph-cc/pkg/ltl"
 	"github.com/raymyers/ralph-cc/pkg/mach"
 	"github.com/raymyers/ralph-cc/pkg/parser"
+	"github.com/raymyers/ralph-cc/pkg/preproc"
 	"github.com/raymyers/ralph-cc/pkg/regalloc"
 	"github.com/raymyers/ralph-cc/pkg/rtl"
 	"github.com/raymyers/ralph-cc/pkg/rtlgen"
@@ -43,6 +44,9 @@ var (
 	dLTL         bool
 	dMach        bool
 )
+
+// Preprocessor options
+var includePaths []string
 
 // debugFlagInfo holds metadata for a debug flag
 type debugFlagInfo struct {
@@ -186,18 +190,45 @@ CompCert design with the goal of equivalent output on each IR.`,
 	rootCmd.Flags().BoolVarP(&dLTL, "dltl", "", false, "Dump LTL")
 	rootCmd.Flags().BoolVarP(&dMach, "dmach", "", false, "Dump Mach")
 
+	// Add preprocessor flags
+	rootCmd.Flags().StringArrayVarP(&includePaths, "include", "I", nil, "Add directory to include search path")
+
 	return rootCmd
 }
 
-// doParse parses the file and writes the AST to a .parsed.c file (matching CompCert behavior)
-func doParse(filename string, out, errOut io.Writer) error {
+// readAndPreprocess reads a C file and optionally preprocesses it.
+// It uses the system's C preprocessor for .c files to handle #include directives.
+// Files with .i or .p extensions are assumed already preprocessed.
+func readAndPreprocess(filename string, errOut io.Writer) (string, error) {
+	if preproc.NeedsPreprocessing(filename) {
+		opts := &preproc.Options{
+			IncludePaths: includePaths,
+		}
+		content, err := preproc.Preprocess(filename, opts)
+		if err != nil {
+			fmt.Fprintf(errOut, "ralph-cc: preprocessing error: %v\n", err)
+			return "", err
+		}
+		return content, nil
+	}
+
+	// File doesn't need preprocessing, read directly
 	content, err := os.ReadFile(filename)
 	if err != nil {
 		fmt.Fprintf(errOut, "ralph-cc: error reading %s: %v\n", filename, err)
-		return err
+		return "", err
+	}
+	return string(content), nil
+}
+
+// parseFile preprocesses and parses a C file, returning the AST
+func parseFile(filename string, errOut io.Writer) (*cabs.Program, error) {
+	content, err := readAndPreprocess(filename, errOut)
+	if err != nil {
+		return nil, err
 	}
 
-	l := lexer.New(string(content))
+	l := lexer.New(content)
 	p := parser.New(l)
 	program := p.ParseProgram()
 
@@ -205,7 +236,16 @@ func doParse(filename string, out, errOut io.Writer) error {
 		for _, e := range p.Errors() {
 			fmt.Fprintf(errOut, "%s: %s\n", filename, e)
 		}
-		return fmt.Errorf("parsing failed with %d errors", len(p.Errors()))
+		return nil, fmt.Errorf("parsing failed with %d errors", len(p.Errors()))
+	}
+	return program, nil
+}
+
+// doParse parses the file and writes the AST to a .parsed.c file (matching CompCert behavior)
+func doParse(filename string, out, errOut io.Writer) error {
+	program, err := parseFile(filename, errOut)
+	if err != nil {
+		return err
 	}
 
 	// Compute output filename: input.c -> input.parsed.c
@@ -242,22 +282,9 @@ func parsedOutputFilename(filename string) string {
 
 // doClight transforms the file to Clight and writes output to .light.c file
 func doClight(filename string, out, errOut io.Writer) error {
-	content, err := os.ReadFile(filename)
+	program, err := parseFile(filename, errOut)
 	if err != nil {
-		fmt.Fprintf(errOut, "ralph-cc: error reading %s: %v\n", filename, err)
 		return err
-	}
-
-	// Parse
-	l := lexer.New(string(content))
-	p := parser.New(l)
-	program := p.ParseProgram()
-
-	if len(p.Errors()) > 0 {
-		for _, e := range p.Errors() {
-			fmt.Fprintf(errOut, "%s: %s\n", filename, e)
-		}
-		return fmt.Errorf("parsing failed with %d errors", len(p.Errors()))
 	}
 
 	// Transform to Clight
@@ -296,22 +323,9 @@ func clightOutputFilename(filename string) string {
 
 // doCsharpminor transforms the file to Csharpminor and writes output to .csharpminor file
 func doCsharpminor(filename string, out, errOut io.Writer) error {
-	content, err := os.ReadFile(filename)
+	program, err := parseFile(filename, errOut)
 	if err != nil {
-		fmt.Fprintf(errOut, "ralph-cc: error reading %s: %v\n", filename, err)
 		return err
-	}
-
-	// Parse
-	l := lexer.New(string(content))
-	p := parser.New(l)
-	program := p.ParseProgram()
-
-	if len(p.Errors()) > 0 {
-		for _, e := range p.Errors() {
-			fmt.Fprintf(errOut, "%s: %s\n", filename, e)
-		}
-		return fmt.Errorf("parsing failed with %d errors", len(p.Errors()))
 	}
 
 	// Transform to Clight
@@ -353,22 +367,9 @@ func csharpminorOutputFilename(filename string) string {
 
 // doCminor transforms the file to Cminor and writes output to .cminor file
 func doCminor(filename string, out, errOut io.Writer) error {
-	content, err := os.ReadFile(filename)
+	program, err := parseFile(filename, errOut)
 	if err != nil {
-		fmt.Fprintf(errOut, "ralph-cc: error reading %s: %v\n", filename, err)
 		return err
-	}
-
-	// Parse
-	l := lexer.New(string(content))
-	p := parser.New(l)
-	program := p.ParseProgram()
-
-	if len(p.Errors()) > 0 {
-		for _, e := range p.Errors() {
-			fmt.Fprintf(errOut, "%s: %s\n", filename, e)
-		}
-		return fmt.Errorf("parsing failed with %d errors", len(p.Errors()))
 	}
 
 	// Transform to Clight
@@ -413,22 +414,9 @@ func cminorOutputFilename(filename string) string {
 
 // doRTL transforms the file to RTL and writes output to .rtl.0 file
 func doRTL(filename string, out, errOut io.Writer) error {
-	content, err := os.ReadFile(filename)
+	program, err := parseFile(filename, errOut)
 	if err != nil {
-		fmt.Fprintf(errOut, "ralph-cc: error reading %s: %v\n", filename, err)
 		return err
-	}
-
-	// Parse
-	l := lexer.New(string(content))
-	p := parser.New(l)
-	program := p.ParseProgram()
-
-	if len(p.Errors()) > 0 {
-		for _, e := range p.Errors() {
-			fmt.Fprintf(errOut, "%s: %s\n", filename, e)
-		}
-		return fmt.Errorf("parsing failed with %d errors", len(p.Errors()))
 	}
 
 	// Transform to Clight
@@ -480,22 +468,9 @@ func rtlOutputFilename(filename string) string {
 
 // doLTL transforms the file to LTL and writes output to .ltl file
 func doLTL(filename string, out, errOut io.Writer) error {
-	content, err := os.ReadFile(filename)
+	program, err := parseFile(filename, errOut)
 	if err != nil {
-		fmt.Fprintf(errOut, "ralph-cc: error reading %s: %v\n", filename, err)
 		return err
-	}
-
-	// Parse
-	l := lexer.New(string(content))
-	p := parser.New(l)
-	program := p.ParseProgram()
-
-	if len(p.Errors()) > 0 {
-		for _, e := range p.Errors() {
-			fmt.Fprintf(errOut, "%s: %s\n", filename, e)
-		}
-		return fmt.Errorf("parsing failed with %d errors", len(p.Errors()))
 	}
 
 	// Transform to Clight
@@ -550,22 +525,9 @@ func ltlOutputFilename(filename string) string {
 
 // doMach transforms the file to Mach and writes output to .mach file
 func doMach(filename string, out, errOut io.Writer) error {
-	content, err := os.ReadFile(filename)
+	program, err := parseFile(filename, errOut)
 	if err != nil {
-		fmt.Fprintf(errOut, "ralph-cc: error reading %s: %v\n", filename, err)
 		return err
-	}
-
-	// Parse
-	l := lexer.New(string(content))
-	p := parser.New(l)
-	program := p.ParseProgram()
-
-	if len(p.Errors()) > 0 {
-		for _, e := range p.Errors() {
-			fmt.Fprintf(errOut, "%s: %s\n", filename, e)
-		}
-		return fmt.Errorf("parsing failed with %d errors", len(p.Errors()))
 	}
 
 	// Transform to Clight
@@ -626,22 +588,9 @@ func machOutputFilename(filename string) string {
 
 // doAsm transforms the file to Assembly and writes output to .s file
 func doAsm(filename string, out, errOut io.Writer) error {
-	content, err := os.ReadFile(filename)
+	program, err := parseFile(filename, errOut)
 	if err != nil {
-		fmt.Fprintf(errOut, "ralph-cc: error reading %s: %v\n", filename, err)
 		return err
-	}
-
-	// Parse
-	l := lexer.New(string(content))
-	p := parser.New(l)
-	program := p.ParseProgram()
-
-	if len(p.Errors()) > 0 {
-		for _, e := range p.Errors() {
-			fmt.Fprintf(errOut, "%s: %s\n", filename, e)
-		}
-		return fmt.Errorf("parsing failed with %d errors", len(p.Errors()))
 	}
 
 	// Transform to Clight
