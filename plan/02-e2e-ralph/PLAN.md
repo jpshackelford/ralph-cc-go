@@ -185,3 +185,5 @@ The following issues prevent hello.c from running correctly after compilation:
     - Fixed by checking for nil Body in TranslateProgram and skipping declarations
     - Reduced hello.c assembly from 90 to 2 functions (only __sputc inline and main)
     - Added TestTranslateProgram_SkipsFunctionDeclarations test
+
+[ ] Verify running hello.c with run.sh. Study and update `plan/02-e2e-ralph/PLAN_HELLO.md` to address if there are issues.
