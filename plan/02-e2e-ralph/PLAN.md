@@ -119,10 +119,11 @@ The following parser limitations prevent compiling programs with `#include <stdi
 
 The following literal handling is needed to compile programs with `#include <stdio.h>`:
 
-[ ] Lexer: Support character literals ('x', '\n', '\\', etc.)
-    - Add TokenChar token type to lexer
-    - Handle single-quoted character literals including escape sequences
-    - Test cases: 'a', '\n', '\t', '\\', '\0', '\''
+[x] Lexer: Support character literals ('x', '\n', '\\', etc.)
+    - Added TokenCharLit token type to lexer (distinct from TokenChar which is the `char` keyword)
+    - Added readCharLiteral() method to handle single-quoted character literals including escape sequences
+    - Added TestCharLiteral test covering: 'a', '\n', '\t', '\\', '\0', '\'', '0', ' '
+    - Added TestCharLiteralInContext test for character literals in code context
 
 [ ] Parser: Support string literals in expressions
     - Add StringLiteral AST node to cabs package

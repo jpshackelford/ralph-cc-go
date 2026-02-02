@@ -360,3 +360,67 @@ func TestAttributeInContext(t *testing.T) {
 		}
 	}
 }
+
+func TestCharLiteral(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"simple char", "'a'", "a"},
+		{"newline escape", `'\n'`, `\n`},
+		{"tab escape", `'\t'`, `\t`},
+		{"backslash escape", `'\\'`, `\\`},
+		{"null escape", `'\0'`, `\0`},
+		{"single quote escape", `'\''`, `\'`},
+		{"digit char", "'0'", "0"},
+		{"space char", "' '", " "},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+			tok := l.NextToken()
+			if tok.Type != TokenCharLit {
+				t.Errorf("expected TokenCharLit, got %s", tok.Type)
+			}
+			if tok.Literal != tt.expected {
+				t.Errorf("expected literal %q, got %q", tt.expected, tok.Literal)
+			}
+		})
+	}
+}
+
+func TestCharLiteralInContext(t *testing.T) {
+	input := `if (c == '\n') { x = 'x'; }`
+
+	expected := []struct {
+		Type    TokenType
+		Literal string
+	}{
+		{TokenIf, "if"},
+		{TokenLParen, "("},
+		{TokenIdent, "c"},
+		{TokenEq, "=="},
+		{TokenCharLit, `\n`},
+		{TokenRParen, ")"},
+		{TokenLBrace, "{"},
+		{TokenIdent, "x"},
+		{TokenAssign, "="},
+		{TokenCharLit, "x"},
+		{TokenSemicolon, ";"},
+		{TokenRBrace, "}"},
+		{TokenEOF, ""},
+	}
+
+	l := New(input)
+	for i, exp := range expected {
+		tok := l.NextToken()
+		if tok.Type != exp.Type {
+			t.Fatalf("token[%d]: expected type %s, got %s (literal: %q)", i, exp.Type, tok.Type, tok.Literal)
+		}
+		if tok.Literal != exp.Literal {
+			t.Fatalf("token[%d]: expected literal %q, got %q", i, exp.Literal, tok.Literal)
+		}
+	}
+}

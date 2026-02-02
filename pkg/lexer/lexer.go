@@ -234,6 +234,10 @@ func (l *Lexer) NextToken() Token {
 		tok.Type = TokenString
 		tok.Literal = l.readString()
 		return tok
+	case '\'':
+		tok.Type = TokenCharLit
+		tok.Literal = l.readCharLiteral()
+		return tok
 	default:
 		if isLetter(l.ch) {
 			tok.Literal = l.readIdentifier()
@@ -417,6 +421,20 @@ func (l *Lexer) readString() string {
 	l.readChar() // consume opening quote
 	pos := l.pos
 	for l.ch != '"' && l.ch != 0 {
+		if l.ch == '\\' {
+			l.readChar() // skip escape char
+		}
+		l.readChar()
+	}
+	str := l.input[pos:l.pos]
+	l.readChar() // consume closing quote
+	return str
+}
+
+func (l *Lexer) readCharLiteral() string {
+	l.readChar() // consume opening quote
+	pos := l.pos
+	for l.ch != '\'' && l.ch != 0 {
 		if l.ch == '\\' {
 			l.readChar() // skip escape char
 		}

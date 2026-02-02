@@ -9,9 +9,10 @@ const (
 	TokenIllegal
 
 	// Literals
-	TokenIdent  // main, foo, x
-	TokenInt    // 42
-	TokenString // "hello"
+	TokenIdent   // main, foo, x
+	TokenInt     // 42
+	TokenString  // "hello"
+	TokenCharLit // 'x', '\n'
 
 	// Keywords
 	TokenInt_    // int
@@ -112,6 +113,7 @@ var tokenNames = map[TokenType]string{
 	TokenIdent:         "IDENT",
 	TokenInt:           "INT",
 	TokenString:        "STRING",
+	TokenCharLit:       "CHARLIT",
 	TokenInt_:          "int",
 	TokenVoid:          "void",
 	TokenReturn:        "return",
