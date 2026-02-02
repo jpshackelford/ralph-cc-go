@@ -81,6 +81,9 @@ func regName64(r MReg) string {
 	if r.IsFloat() {
 		return fmt.Sprintf("d%d", r-D0)
 	}
+	if r == SP {
+		return "sp"
+	}
 	if r == X29 {
 		return "x29"
 	}
@@ -235,12 +238,18 @@ func (p *Printer) printInstruction(inst Instruction) {
 		} else {
 			fmt.Fprintf(p.w, "\tldp\t%s, %s, [%s, #%d]\n", regName(i.Rt1, i.Is64), regName(i.Rt2, i.Is64), regName64(i.Rn), i.Ofs)
 		}
+	case LDPpost:
+		// Post-index: ldp rt1, rt2, [rn], #ofs
+		fmt.Fprintf(p.w, "\tldp\t%s, %s, [%s], #%d\n", regName(i.Rt1, i.Is64), regName(i.Rt2, i.Is64), regName64(i.Rn), i.Ofs)
 	case STP:
 		if i.Ofs == 0 {
 			fmt.Fprintf(p.w, "\tstp\t%s, %s, [%s]\n", regName(i.Rt1, i.Is64), regName(i.Rt2, i.Is64), regName64(i.Rn))
 		} else {
 			fmt.Fprintf(p.w, "\tstp\t%s, %s, [%s, #%d]\n", regName(i.Rt1, i.Is64), regName(i.Rt2, i.Is64), regName64(i.Rn), i.Ofs)
 		}
+	case STPpre:
+		// Pre-index: stp rt1, rt2, [rn, #ofs]!
+		fmt.Fprintf(p.w, "\tstp\t%s, %s, [%s, #%d]!\n", regName(i.Rt1, i.Is64), regName(i.Rt2, i.Is64), regName64(i.Rn), i.Ofs)
 
 	// Load/store float
 	case FLDRs:

@@ -25,10 +25,12 @@ type IntegrationTestFile struct {
 
 // E2EAsmTestSpec represents a single end-to-end ASM test case
 type E2EAsmTestSpec struct {
-	Name   string   `yaml:"name"`
-	Input  string   `yaml:"input"`
-	Expect []string `yaml:"expect"` // Strings that must appear in output
-	Skip   string   `yaml:"skip,omitempty"`
+	Name         string   `yaml:"name"`
+	Input        string   `yaml:"input"`
+	Expect       []string `yaml:"expect"`        // Strings that must appear in output
+	ExpectOrder  []string `yaml:"expect_order"`  // Strings that must appear in this order
+	ExpectUnique []string `yaml:"expect_unique"` // Strings that must appear exactly once
+	Skip         string   `yaml:"skip,omitempty"`
 }
 
 // E2EAsmTestFile represents the e2e_asm.yaml file structure
@@ -272,6 +274,28 @@ func TestE2EAsmYAML(t *testing.T) {
 			for _, exp := range tc.Expect {
 				if !strings.Contains(output, exp) {
 					t.Errorf("expected output to contain %q\nGot:\n%s", exp, output)
+				}
+			}
+
+			// Check that strings appear in specified order
+			if len(tc.ExpectOrder) > 0 {
+				lastIdx := -1
+				for _, exp := range tc.ExpectOrder {
+					idx := strings.Index(output, exp)
+					if idx == -1 {
+						t.Errorf("expected output to contain %q for order check\nGot:\n%s", exp, output)
+					} else if idx <= lastIdx {
+						t.Errorf("expected %q to appear after previous pattern (position %d vs %d)\nGot:\n%s", exp, idx, lastIdx, output)
+					}
+					lastIdx = idx
+				}
+			}
+
+			// Check that strings appear exactly once
+			for _, exp := range tc.ExpectUnique {
+				count := strings.Count(output, exp)
+				if count != 1 {
+					t.Errorf("expected %q to appear exactly once, found %d times\nGot:\n%s", exp, count, output)
 				}
 			}
 		})

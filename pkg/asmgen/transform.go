@@ -39,8 +39,9 @@ func TransformProgram(prog *mach.Program) *asm.Program {
 // transformFunction transforms a single Mach function to assembly
 func transformFunction(f *mach.Function) asm.Function {
 	ctx := &genContext{
-		fn:         f,
-		labelCount: 0,
+		fn:              f,
+		labelCount:      0,
+		prologueEmitted: false,
 	}
 
 	result := asm.Function{
@@ -48,8 +49,26 @@ func transformFunction(f *mach.Function) asm.Function {
 		Code: make([]asm.Instruction, 0),
 	}
 
-	// Transform each instruction
-	for _, inst := range f.Code {
+	// Emit proper ARM64 prologue
+	prologue := ctx.generatePrologue()
+	result.Code = append(result.Code, prologue...)
+
+	// Transform body instructions, skipping the Mach prologue and epilogue
+	skipCount := ctx.countPrologueInstructions()
+	
+	for i := skipCount; i < len(f.Code); i++ {
+		inst := f.Code[i]
+		
+		// Check if this is the start of an epilogue sequence
+		// Epilogue pattern: Mgetstack, Mgetstack, Mop, Mreturn
+		if ctx.isEpilogueStart(i) {
+			// Skip to the Mreturn instruction (the last one in epilogue)
+			// which will generate the proper epilogue
+			epilogueLen := ctx.countEpilogueInstructions(i)
+			i += epilogueLen - 1 // Move to Mreturn, loop will process it
+			inst = f.Code[i]     // Update inst to be the Mreturn
+		}
+		
 		instrs := ctx.translateInstruction(inst)
 		result.Code = append(result.Code, instrs...)
 	}
@@ -59,8 +78,139 @@ func transformFunction(f *mach.Function) asm.Function {
 
 // genContext holds state during code generation
 type genContext struct {
-	fn         *mach.Function
-	labelCount int
+	fn              *mach.Function
+	labelCount      int
+	prologueEmitted bool
+}
+
+// countPrologueInstructions returns the number of Mach instructions that form the prologue
+// The standard prologue pattern is:
+// 1. Mop (frame allocation: addlimm negative)
+// 2. Msetstack (save FP)
+// 3. Msetstack (save LR)
+// 4. Mop (set FP: addlimm)
+func (ctx *genContext) countPrologueInstructions() int {
+	if len(ctx.fn.Code) < 4 {
+		return 0
+	}
+	
+	count := 0
+	
+	// Check for frame allocation Mop
+	if _, ok := ctx.fn.Code[0].(mach.Mop); ok {
+		count++
+	} else {
+		return 0
+	}
+	
+	// Check for FP save Msetstack
+	if _, ok := ctx.fn.Code[1].(mach.Msetstack); ok {
+		count++
+	} else {
+		return count
+	}
+	
+	// Check for LR save Msetstack
+	if _, ok := ctx.fn.Code[2].(mach.Msetstack); ok {
+		count++
+	} else {
+		return count
+	}
+	
+	// Check for FP setup Mop
+	if _, ok := ctx.fn.Code[3].(mach.Mop); ok {
+		count++
+	}
+	
+	return count
+}
+
+// isEpilogueStart checks if instruction at index i is the start of an epilogue sequence
+// Epilogue pattern: Mgetstack (FP), Mgetstack (LR), Mop (frame dealloc), Mreturn
+func (ctx *genContext) isEpilogueStart(i int) bool {
+	code := ctx.fn.Code
+	remaining := len(code) - i
+	
+	// Need at least 4 instructions for full epilogue, or just Mreturn
+	if remaining < 1 {
+		return false
+	}
+	
+	// Check for Mgetstack (restore FP) followed by more epilogue instructions
+	if _, ok := code[i].(mach.Mgetstack); ok {
+		if remaining >= 4 {
+			if _, ok := code[i+1].(mach.Mgetstack); ok {
+				if _, ok := code[i+2].(mach.Mop); ok {
+					if _, ok := code[i+3].(mach.Mreturn); ok {
+						return true
+					}
+				}
+			}
+		}
+	}
+	
+	return false
+}
+
+// countEpilogueInstructions returns the number of instructions in the epilogue starting at i
+func (ctx *genContext) countEpilogueInstructions(i int) int {
+	code := ctx.fn.Code
+	remaining := len(code) - i
+	
+	// Full epilogue: Mgetstack, Mgetstack, Mop, Mreturn
+	if remaining >= 4 {
+		if _, ok := code[i].(mach.Mgetstack); ok {
+			if _, ok := code[i+1].(mach.Mgetstack); ok {
+				if _, ok := code[i+2].(mach.Mop); ok {
+					if _, ok := code[i+3].(mach.Mreturn); ok {
+						return 4
+					}
+				}
+			}
+		}
+	}
+	
+	return 0
+}
+
+// generatePrologue generates proper ARM64 prologue instructions
+func (ctx *genContext) generatePrologue() []asm.Instruction {
+	if ctx.fn.Stacksize == 0 {
+		return nil
+	}
+	
+	// ARM64 prologue:
+	// stp x29, x30, [sp, #-framesize]!   ; save FP and LR, pre-decrement SP
+	// mov x29, sp                         ; set FP
+	
+	frameSize := ctx.fn.Stacksize
+	
+	return []asm.Instruction{
+		// stp x29, x30, [sp, #-framesize]!
+		asm.STPpre{Rt1: asm.X29, Rt2: asm.X30, Rn: asm.SP, Ofs: -frameSize, Is64: true},
+		// mov x29, sp
+		asm.MOV{Rd: asm.X29, Rm: asm.SP, Is64: true},
+	}
+}
+
+// generateEpilogue generates proper ARM64 epilogue instructions
+func (ctx *genContext) generateEpilogue() []asm.Instruction {
+	if ctx.fn.Stacksize == 0 {
+		return []asm.Instruction{asm.RET{}}
+	}
+	
+	// ARM64 epilogue:
+	// ldp x29, x30, [sp], #framesize   ; restore FP and LR, post-increment SP
+	// ret
+	
+	frameSize := ctx.fn.Stacksize
+	
+	return []asm.Instruction{
+		// ldp x29, x30, [sp], #framesize
+		asm.LDPpost{Rt1: asm.X29, Rt2: asm.X30, Rn: asm.SP, Ofs: frameSize, Is64: true},
+		// ret
+		asm.RET{},
+	}
 }
 
 // newLabel generates a unique label
@@ -104,7 +254,8 @@ func (ctx *genContext) translateInstruction(inst mach.Instruction) []asm.Instruc
 	case mach.Mjumptable:
 		return ctx.translateJumptable(i)
 	case mach.Mreturn:
-		return []asm.Instruction{asm.RET{}}
+		// Generate proper epilogue instead of just ret
+		return ctx.generateEpilogue()
 	default:
 		// Unknown instruction - generate a comment
 		return nil

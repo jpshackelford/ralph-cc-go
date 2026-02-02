@@ -44,6 +44,8 @@ const (
 	X28 = ltl.X28
 	X29 = ltl.X29 // FP
 	X30 = ltl.X30 // LR
+	// SP (stack pointer) is a special register, value 31 with sp context
+	SP  MReg = 100 // Special marker for stack pointer (different from XZR)
 	D0  = ltl.D0
 	D1  = ltl.D1
 	D2  = ltl.D2
@@ -328,11 +330,27 @@ type LDP struct {
 	Is64     bool
 }
 
+// LDPpost - Load pair with post-index (load then increment base)
+type LDPpost struct {
+	Rt1, Rt2 MReg
+	Rn       MReg
+	Ofs      int64 // offset added to Rn after load
+	Is64     bool
+}
+
 // STP - Store pair
 type STP struct {
 	Rt1, Rt2 MReg
 	Rn       MReg
 	Ofs      int64
+	Is64     bool
+}
+
+// STPpre - Store pair with pre-index (decrement base then store)
+type STPpre struct {
+	Rt1, Rt2 MReg
+	Rn       MReg
+	Ofs      int64 // offset added to Rn before store (usually negative)
 	Is64     bool
 }
 
@@ -737,7 +755,9 @@ func (STRr) implInstruction()     {}
 func (STRB) implInstruction()     {}
 func (STRH) implInstruction()     {}
 func (LDP) implInstruction()      {}
+func (LDPpost) implInstruction()  {}
 func (STP) implInstruction()      {}
+func (STPpre) implInstruction()   {}
 func (FLDRs) implInstruction()    {}
 func (FLDRd) implInstruction()    {}
 func (FSTRs) implInstruction()    {}

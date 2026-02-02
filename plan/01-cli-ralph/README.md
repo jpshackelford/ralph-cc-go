@@ -15,6 +15,7 @@ With other conveniences:
 ```sh
 function ralph1() {
     local logfile="plan/01-cli-ralph/logs/$(date +%Y%m%d-%H-%M-%S).log"
+    echo "ralph1: writing to $logfile" >&2
     env TERM=dumb openhands --headless -f plan/01-cli-ralph/RALPH.md --json > "$logfile"
 }
 
@@ -38,7 +39,7 @@ function ralph4() {
 ```sh
 watch -n 10 -c "git diff --stat && git log --oneline -n 10"
 
-watch -n 10 -c "grep -m 1 -A1 '\[ \]' plan/01-cli-ralph/PLAN.md && echo '---' && git diff --stat && echo '---' && git log --oneline -n 10"
+watch -n 10 -c "grep -m 1 -A1 '\[ \]' plan/01-cli-ralph/PLAN.md && echo '---' && git ls-files --others --exclude-standard && echo --- && git diff --stat && echo '--- git log ---' && git log --oneline -n 10"
 ```
 
 

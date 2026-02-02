@@ -106,3 +106,38 @@ tests:
       - "f:"
       - "asr\t"  # arithmetic shift right
       - "ret"
+
+  # Test cases for known issues (docs/RUNNING.md)
+  
+  - name: "return value before ret - known issue 1"
+    # Issue: return value must be set before ret instruction, not after
+    input: |
+      int main() { return 42; }
+    expect:
+      - ".global\tmain"
+      - "main:"
+      - "mov\tw0, #42"  # must set return value
+      - "ret"
+    expect_order:
+      - "mov\tw0, #42"  # return value MUST come before ret
+      - "ret"
+
+  - name: "stack frame setup - known issue 2"
+    # Issue: prologue must save FP/LR properly before modifying them
+    input: |
+      int f() { return 1; }
+    expect:
+      - ".global\tf"
+      - "f:"
+      - "stp\tx29, x30"  # must save FP and LR with stp
+      - "ret"
+
+  - name: "no duplicate functions - known issue 3"
+    # Issue: each function should appear exactly once
+    input: |
+      int main() { return 0; }
+    expect:
+      - ".global\tmain"
+      - "main:"
+    expect_unique:
+      - "main:"  # should appear exactly once

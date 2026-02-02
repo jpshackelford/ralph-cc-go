@@ -87,6 +87,7 @@ func (l *linearizer) linearize() *linear.Function {
 }
 
 // computeOrder computes reverse postorder traversal of the CFG
+// Only includes blocks reachable from the entry point.
 func (l *linearizer) computeOrder() {
 	visited := make(map[ltl.Node]bool)
 	var postorder []ltl.Node
@@ -112,15 +113,12 @@ func (l *linearizer) computeOrder() {
 		postorder = append(postorder, n)
 	}
 
-	// Start from entry point
+	// Start from entry point - only include reachable blocks
 	dfs(l.fn.Entrypoint)
 
-	// Also visit any unreachable blocks (shouldn't happen in well-formed code)
-	for n := range l.fn.Code {
-		if !visited[n] {
-			dfs(n)
-		}
-	}
+	// NOTE: We intentionally do NOT include unreachable blocks.
+	// Unreachable code (e.g., orphan exit nodes from RTL generation)
+	// should not be emitted to the final output.
 
 	// Reverse postorder
 	l.order = make([]ltl.Node, len(postorder))
