@@ -652,6 +652,7 @@ func (p *Parser) parseParameterList() ([]cabs.Param, bool) {
 }
 
 // parseParameter parses a single function parameter: type name
+// Also handles function pointer parameters like: int (*fn)(int, int) or int (* )(int, int)
 func (p *Parser) parseParameter() *cabs.Param {
 	// Skip type qualifiers
 	for p.isTypeQualifier() {
@@ -675,6 +676,11 @@ func (p *Parser) parseParameter() *cabs.Param {
 		}
 	}
 
+	// Check for function pointer parameter: type (*name)(params) or type (* )(params)
+	if p.curTokenIs(lexer.TokenLParen) && p.peekTokenIs(lexer.TokenStar) {
+		return p.parseFunctionPointerParameter(typeSpec)
+	}
+
 	// Parameter name is optional in declarations, but we require it for now
 	name := ""
 	if p.curTokenIs(lexer.TokenIdent) {
@@ -694,6 +700,38 @@ func (p *Parser) parseParameter() *cabs.Param {
 		}
 		typeSpec = typeSpec + "[]"
 	}
+
+	return &cabs.Param{TypeSpec: typeSpec, Name: name}
+}
+
+// parseFunctionPointerParameter parses a function pointer parameter like:
+// int (*fn)(int, int) - named function pointer
+// int (* )(int, int) - anonymous function pointer
+func (p *Parser) parseFunctionPointerParameter(returnType string) *cabs.Param {
+	p.nextToken() // consume '('
+	p.nextToken() // consume '*'
+
+	// Optional: parameter name (can be empty for anonymous function pointers)
+	name := ""
+	if p.curTokenIs(lexer.TokenIdent) {
+		name = p.curToken.Literal
+		p.nextToken()
+	}
+
+	// Expect ')'
+	if !p.expect(lexer.TokenRParen) {
+		return nil
+	}
+
+	// Expect '(' for parameter list
+	if !p.curTokenIs(lexer.TokenLParen) {
+		p.addError(fmt.Sprintf("expected '(' for function pointer parameters, got %s", p.curToken.Type))
+		return nil
+	}
+	paramList := p.parseFunctionPointerParams()
+
+	// Build the type spec: returnType(*)(params)
+	typeSpec := returnType + "(*)" + "(" + paramList + ")"
 
 	return &cabs.Param{TypeSpec: typeSpec, Name: name}
 }

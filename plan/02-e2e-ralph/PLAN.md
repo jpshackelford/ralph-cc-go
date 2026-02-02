@@ -97,9 +97,12 @@ The following parser limitations prevent compiling programs with `#include <stdi
     - Added TestGlobalVariableDeclaration test cases
     - Also fixed typedef array dimensions (typedef char uuid_t[16]) while implementing
 
-[ ] Parser: Support function pointer parameters in function declarations
+[x] Parser: Support function pointer parameters in function declarations
     - `funopen(const void *, int (*)(void *, char *, int), ...)` style
-    - ~45 errors related to function pointer parameters being misinterpreted
-    - Need to recognize `type (*)(params)` pattern in parameter lists
+    - Added `parseFunctionPointerParameter()` function to handle function pointer params
+    - Supports both named `int (*fn)(int, int)` and anonymous `int (* )(int, int)` forms
+    - Detects `(` followed by `*` pattern after parsing type specifier
+    - Reduced parsing errors from ~45 to 3 (remaining errors are unrelated)
+    - Added comprehensive tests: TestFunctionPointerParameter
 
 [ ] Confirm `testdata/example-c/hello.c` now runs and prints as expected, otherwise add tasks.

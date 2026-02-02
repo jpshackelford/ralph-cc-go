@@ -3536,3 +3536,79 @@ func TestTypedefWithArrayDimension(t *testing.T) {
 		})
 	}
 }
+
+func TestFunctionPointerParameter(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		numParams  int
+		paramTypes []string
+		paramNames []string
+	}{
+		{
+			"anonymous function pointer parameter",
+			"int f(int (* )(void *, char *, int));",
+			1,
+			[]string{"int(*)(void*,char*,int)"},
+			[]string{""},
+		},
+		{
+			"named function pointer parameter",
+			"int f(int (*fn)(int, int));",
+			1,
+			[]string{"int(*)(int,int)"},
+			[]string{"fn"},
+		},
+		{
+			"multiple function pointer parameters",
+			"int funopen(const void *cookie, int (* )(void *, char *, int), int (* )(void *));",
+			3,
+			[]string{"void*", "int(*)(void*,char*,int)", "int(*)(void*)"},
+			[]string{"cookie", "", ""},
+		},
+		{
+			"function pointer returning pointer",
+			"void setup(char *(*getter)(void));",
+			1,
+			[]string{"char*(*)(void)"},
+			[]string{"getter"},
+		},
+		{
+			"mixed parameters with function pointer",
+			"int process(int x, void (*callback)(int), int y);",
+			3,
+			[]string{"int", "void(*)(int)", "int"},
+			[]string{"x", "callback", "y"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef, ok := def.(cabs.FunDef)
+			if !ok {
+				t.Fatalf("expected FunDef, got %T", def)
+			}
+
+			if len(funDef.Params) != tt.numParams {
+				t.Fatalf("expected %d params, got %d", tt.numParams, len(funDef.Params))
+			}
+
+			for i, param := range funDef.Params {
+				if param.TypeSpec != tt.paramTypes[i] {
+					t.Errorf("param %d type: expected %q, got %q", i, tt.paramTypes[i], param.TypeSpec)
+				}
+				if param.Name != tt.paramNames[i] {
+					t.Errorf("param %d name: expected %q, got %q", i, tt.paramNames[i], param.Name)
+				}
+			}
+		})
+	}
+}
