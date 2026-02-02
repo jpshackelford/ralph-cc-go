@@ -22,11 +22,15 @@ The following parser limitations prevent compiling programs with `#include <stdi
     - Updated all pointer parsing locations: return types, parameters, struct fields, typedefs, declarations, for-loops
     - Added test cases in testdata/parse.yaml
 
-[ ] Parser: Support compound type specifiers
+[x] Parser: Support compound type specifiers
     - `signed char`, `unsigned char` - fails with "expected typedef name, got char"
     - `unsigned short`, `signed short`
     - `long long` - fails with "expected function name, got long"
     - ~21 typedef errors from compound types
+    - Added `parseCompoundTypeSpecifier()` helper to collect all primitive type specifiers
+    - Normalizes to canonical forms (e.g., "unsigned long long", "signed char")
+    - Updated all type parsing locations: function return types, parameters, typedefs, struct fields, declarations, for-loop declarations
+    - Added test cases in testdata/parse.yaml for compound type specifiers
 
 [ ] Parser: Support function pointers in struct fields
     - macOS FILE struct contains: `int (*_read)(void *, char *, int);`
@@ -41,4 +45,4 @@ The following parser limitations prevent compiling programs with `#include <stdi
     - `__attribute__((__format__ (__printf__, 1, 2)))` on printf
     - May need to be stripped/ignored during parsing
 
-[ ] Confirm `testdata/example-c/hello.c` now runs and prints as expected.
+[ ] Confirm `testdata/example-c/hello.c` now runs and prints as expected, otherwise add tasks.

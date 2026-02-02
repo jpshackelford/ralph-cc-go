@@ -211,14 +211,7 @@ func (p *Parser) ParseDefinition() cabs.Definition {
 		return nil
 	}
 
-	returnType := p.curToken.Literal
-	p.nextToken()
-
-	// Handle struct/union/enum types: struct Name, union Name, enum Name
-	if (returnType == "struct" || returnType == "union" || returnType == "enum") && p.curTokenIs(lexer.TokenIdent) {
-		returnType = returnType + " " + p.curToken.Literal
-		p.nextToken()
-	}
+	returnType := p.parseCompoundTypeSpecifier()
 
 	// Handle pointer in return type with optional qualifiers
 	for p.curTokenIs(lexer.TokenStar) {
@@ -312,8 +305,7 @@ func (p *Parser) parseStructBody(name string, isUnion bool) cabs.Definition {
 			p.nextToken()
 		}
 
-		typeSpec := p.curToken.Literal
-		p.nextToken()
+		typeSpec := p.parseCompoundTypeSpecifier()
 
 		// Handle pointer types with optional qualifiers
 		for p.curTokenIs(lexer.TokenStar) {
@@ -474,14 +466,7 @@ func (p *Parser) parseParameter() *cabs.Param {
 		return nil
 	}
 
-	typeSpec := p.curToken.Literal
-	p.nextToken()
-
-	// Handle struct/union/enum types: struct Name, union Name, enum Name
-	if (typeSpec == "struct" || typeSpec == "union" || typeSpec == "enum") && p.curTokenIs(lexer.TokenIdent) {
-		typeSpec = typeSpec + " " + p.curToken.Literal
-		p.nextToken()
-	}
+	typeSpec := p.parseCompoundTypeSpecifier()
 
 	// Handle pointer types with optional qualifiers (e.g., int * const restrict ptr)
 	for p.curTokenIs(lexer.TokenStar) {
@@ -525,8 +510,7 @@ func (p *Parser) parseTypedef() cabs.Definition {
 		return nil
 	}
 
-	typeSpec := p.curToken.Literal
-	p.nextToken()
+	typeSpec := p.parseCompoundTypeSpecifier()
 
 	// Handle pointer types with optional qualifiers
 	for p.curTokenIs(lexer.TokenStar) {
@@ -589,6 +573,192 @@ func (p *Parser) isTypeQualifier() bool {
 // isDeclarationStart checks if current token starts a declaration
 func (p *Parser) isDeclarationStart() bool {
 	return p.isStorageClassSpecifier() || p.isTypeQualifier() || p.isTypeSpecifier()
+}
+
+// isPrimitiveTypeSpecifier returns true if the token is a primitive type specifier
+// (signed, unsigned, char, short, int, long, float, double, void)
+func (p *Parser) isPrimitiveTypeSpecifier() bool {
+	switch p.curToken.Type {
+	case lexer.TokenInt_, lexer.TokenVoid, lexer.TokenChar, lexer.TokenShort,
+		lexer.TokenLong, lexer.TokenFloat, lexer.TokenDouble,
+		lexer.TokenSigned, lexer.TokenUnsigned:
+		return true
+	}
+	return false
+}
+
+// parseCompoundTypeSpecifier parses compound type specifiers like:
+// - signed char, unsigned char
+// - signed short, unsigned short, short int
+// - signed int, unsigned int
+// - signed long, unsigned long, long int
+// - long long, signed long long, unsigned long long
+// - long double
+// Returns the combined type string (e.g., "signed char", "unsigned long long")
+// Assumes isTypeSpecifier() has been checked and curToken is a type specifier
+func (p *Parser) parseCompoundTypeSpecifier() string {
+	var parts []string
+
+	// Handle struct/union/enum types specially
+	if p.curToken.Type == lexer.TokenStruct || p.curToken.Type == lexer.TokenUnion || p.curToken.Type == lexer.TokenEnum {
+		typeSpec := p.curToken.Literal
+		p.nextToken()
+		// Handle struct/union/enum name
+		if p.curTokenIs(lexer.TokenIdent) {
+			typeSpec = typeSpec + " " + p.curToken.Literal
+			p.nextToken()
+		}
+		return typeSpec
+	}
+
+	// Handle typedef names (not compound)
+	if p.curToken.Type == lexer.TokenIdent && p.typedefs[p.curToken.Literal] {
+		typeSpec := p.curToken.Literal
+		p.nextToken()
+		return typeSpec
+	}
+
+	// Collect primitive type specifiers
+	// Valid combinations:
+	// - signed/unsigned (optional) + char
+	// - signed/unsigned (optional) + short (optional int)
+	// - signed/unsigned (optional) + int
+	// - signed/unsigned (optional) + long (optional int)
+	// - signed/unsigned (optional) + long long (optional int)
+	// - long double
+	// - void
+	// - float
+	// - double
+
+	for p.isPrimitiveTypeSpecifier() {
+		parts = append(parts, p.curToken.Literal)
+		p.nextToken()
+	}
+
+	if len(parts) == 0 {
+		return ""
+	}
+
+	// Normalize the type string
+	// For simple cases, join with spaces
+	return normalizeTypeSpecifier(parts)
+}
+
+// normalizeTypeSpecifier normalizes a slice of type specifier parts into a canonical form
+func normalizeTypeSpecifier(parts []string) string {
+	// Count occurrences of each specifier
+	hasSigned := false
+	hasUnsigned := false
+	hasChar := false
+	hasShort := false
+	hasInt := false
+	longCount := 0
+	hasFloat := false
+	hasDouble := false
+	hasVoid := false
+
+	for _, part := range parts {
+		switch part {
+		case "signed":
+			hasSigned = true
+		case "unsigned":
+			hasUnsigned = true
+		case "char":
+			hasChar = true
+		case "short":
+			hasShort = true
+		case "int":
+			hasInt = true
+		case "long":
+			longCount++
+		case "float":
+			hasFloat = true
+		case "double":
+			hasDouble = true
+		case "void":
+			hasVoid = true
+		}
+	}
+
+	// Build canonical type string
+	var result []string
+
+	if hasVoid {
+		return "void"
+	}
+
+	if hasFloat {
+		return "float"
+	}
+
+	// long double
+	if hasDouble {
+		if longCount > 0 {
+			return "long double"
+		}
+		return "double"
+	}
+
+	// char types
+	if hasChar {
+		if hasUnsigned {
+			return "unsigned char"
+		}
+		if hasSigned {
+			return "signed char"
+		}
+		return "char"
+	}
+
+	// short types
+	if hasShort {
+		if hasUnsigned {
+			result = append(result, "unsigned")
+		}
+		// signed short is just "short"
+		result = append(result, "short")
+		return joinTypeSpecifiers(result)
+	}
+
+	// long long types
+	if longCount >= 2 {
+		if hasUnsigned {
+			result = append(result, "unsigned")
+		}
+		result = append(result, "long long")
+		return joinTypeSpecifiers(result)
+	}
+
+	// long types
+	if longCount == 1 {
+		if hasUnsigned {
+			result = append(result, "unsigned")
+		}
+		result = append(result, "long")
+		return joinTypeSpecifiers(result)
+	}
+
+	// int types (or just signed/unsigned alone means int)
+	if hasInt || hasSigned || hasUnsigned {
+		if hasUnsigned {
+			return "unsigned"
+		}
+		return "int"
+	}
+
+	// Fallback: join all parts as-is (shouldn't normally reach here)
+	return joinTypeSpecifiers(parts)
+}
+
+func joinTypeSpecifiers(parts []string) string {
+	if len(parts) == 0 {
+		return ""
+	}
+	result := parts[0]
+	for i := 1; i < len(parts); i++ {
+		result = result + " " + parts[i]
+	}
+	return result
 }
 
 func (p *Parser) parseBlock() *cabs.Block {
@@ -685,14 +855,7 @@ func (p *Parser) parseDeclarationStatement() cabs.Stmt {
 		return nil
 	}
 
-	baseType := p.curToken.Literal
-	p.nextToken()
-
-	// Handle struct/union/enum types: struct Name, union Name, enum Name
-	if (baseType == "struct" || baseType == "union" || baseType == "enum") && p.curTokenIs(lexer.TokenIdent) {
-		baseType = baseType + " " + p.curToken.Literal
-		p.nextToken()
-	}
+	baseType := p.parseCompoundTypeSpecifier()
 
 	var decls []cabs.Decl
 
@@ -1056,14 +1219,7 @@ func (p *Parser) parseForDeclaration() []cabs.Decl {
 		return nil
 	}
 
-	baseType := p.curToken.Literal
-	p.nextToken()
-
-	// Handle struct/union/enum types
-	if (baseType == "struct" || baseType == "union" || baseType == "enum") && p.curTokenIs(lexer.TokenIdent) {
-		baseType = baseType + " " + p.curToken.Literal
-		p.nextToken()
-	}
+	baseType := p.parseCompoundTypeSpecifier()
 
 	var decls []cabs.Decl
 
