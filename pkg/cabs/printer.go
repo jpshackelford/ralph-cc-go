@@ -61,8 +61,14 @@ func (p *Printer) printFunDef(f FunDef) {
 		}
 		fmt.Fprint(p.w, "...")
 	}
-	fmt.Fprintln(p.w, ")")
-	p.printBlock(f.Body)
+	if f.Body == nil {
+		// Function declaration (prototype)
+		fmt.Fprintln(p.w, ");")
+	} else {
+		// Function definition with body
+		fmt.Fprintln(p.w, ")")
+		p.printBlock(f.Body)
+	}
 }
 
 func (p *Printer) printTypedefDef(t TypedefDef) {

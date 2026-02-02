@@ -279,3 +279,63 @@ func TestEllipsisVsDot(t *testing.T) {
 		}
 	}
 }
+
+
+func TestAttributeTokens(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected TokenType
+	}{
+		{"__attribute__", TokenAttribute},
+		{"__asm", TokenAsm},
+		{"__asm__", TokenAsm},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			l := New(tt.input)
+			tok := l.NextToken()
+			if tok.Type != tt.expected {
+				t.Errorf("expected %s for %q, got %s", tt.expected, tt.input, tok.Type)
+			}
+		})
+	}
+}
+
+func TestAttributeInContext(t *testing.T) {
+	input := `int foo(void) __attribute__((cold)) __asm("_foo");`
+
+	expected := []struct {
+		Type    TokenType
+		Literal string
+	}{
+		{TokenInt_, "int"},
+		{TokenIdent, "foo"},
+		{TokenLParen, "("},
+		{TokenVoid, "void"},
+		{TokenRParen, ")"},
+		{TokenAttribute, "__attribute__"},
+		{TokenLParen, "("},
+		{TokenLParen, "("},
+		{TokenIdent, "cold"},
+		{TokenRParen, ")"},
+		{TokenRParen, ")"},
+		{TokenAsm, "__asm"},
+		{TokenLParen, "("},
+		{TokenString, "_foo"},
+		{TokenRParen, ")"},
+		{TokenSemicolon, ";"},
+		{TokenEOF, ""},
+	}
+
+	l := New(input)
+	for i, exp := range expected {
+		tok := l.NextToken()
+		if tok.Type != exp.Type {
+			t.Fatalf("token[%d]: expected type %s, got %s (literal: %q)", i, exp.Type, tok.Type, tok.Literal)
+		}
+		if tok.Literal != exp.Literal {
+			t.Fatalf("token[%d]: expected literal %q, got %q", i, exp.Literal, tok.Literal)
+		}
+	}
+}

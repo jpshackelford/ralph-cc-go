@@ -162,6 +162,9 @@ func (p *Parser) isStatementStart() bool {
 
 // ParseDefinition parses a top-level definition (function, typedef, struct, union, or enum)
 func (p *Parser) ParseDefinition() cabs.Definition {
+	// Skip leading __attribute__ and __asm (GCC extensions before declarations)
+	p.skipAttributes()
+
 	// Check for typedef
 	if p.curTokenIs(lexer.TokenTypedef) {
 		return p.parseTypedef()
@@ -243,9 +246,24 @@ func (p *Parser) ParseDefinition() cabs.Definition {
 	}
 	p.nextToken() // consume ')'
 
-	// Function body
+	// Skip any __attribute__ or __asm constructs
+	p.skipAttributes()
+
+	// Function declaration (prototype) ends with semicolon
+	if p.curTokenIs(lexer.TokenSemicolon) {
+		p.nextToken() // consume ';'
+		return cabs.FunDef{
+			ReturnType: returnType,
+			Name:       name,
+			Params:     params,
+			Variadic:   variadic,
+			Body:       nil, // Declaration, no body
+		}
+	}
+
+	// Function definition with body
 	if !p.curTokenIs(lexer.TokenLBrace) {
-		p.addError(fmt.Sprintf("expected '{', got %s", p.curToken.Type))
+		p.addError(fmt.Sprintf("expected '{' or ';', got %s", p.curToken.Type))
 		return nil
 	}
 	body := p.parseBlock()
@@ -678,6 +696,35 @@ func (p *Parser) isTypeQualifier() bool {
 		return true
 	}
 	return false
+}
+
+// skipAttributes skips __attribute__((...)) and __asm(...) constructs
+// These are GCC extensions commonly found in system headers.
+// Can appear multiple times, e.g.: __asm("_foo") __attribute__((cold))
+func (p *Parser) skipAttributes() {
+	for p.curTokenIs(lexer.TokenAttribute) || p.curTokenIs(lexer.TokenAsm) {
+		p.nextToken() // consume __attribute__ or __asm
+
+		// Expect opening paren
+		if !p.curTokenIs(lexer.TokenLParen) {
+			return
+		}
+
+		// Count parentheses to find matching close
+		depth := 0
+		for !p.curTokenIs(lexer.TokenEOF) {
+			if p.curTokenIs(lexer.TokenLParen) {
+				depth++
+			} else if p.curTokenIs(lexer.TokenRParen) {
+				depth--
+				if depth == 0 {
+					p.nextToken() // consume final ')'
+					break
+				}
+			}
+			p.nextToken()
+		}
+	}
 }
 
 // isDeclarationStart checks if current token starts a declaration

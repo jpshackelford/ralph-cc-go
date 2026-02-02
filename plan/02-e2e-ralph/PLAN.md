@@ -49,8 +49,13 @@ The following parser limitations prevent compiling programs with `#include <stdi
     - Added tests for lexer (TestEllipsis, TestEllipsisVsDot)
     - Added tests for parser (TestVariadicFunctionDeclaration)
 
-[ ] Parser: Support __attribute__ in function declarations
-    - `__attribute__((__format__ (__printf__, 1, 2)))` on printf
-    - May need to be stripped/ignored during parsing
+[x] Parser: Support __attribute__ in function declarations
+    - Added TokenAttribute and TokenAsm token types to lexer
+    - Added skipAttributes() parser helper to skip __attribute__((...)) and __asm(...) constructs
+    - Added support for function declarations (prototypes ending with semicolon, Body=nil)
+    - skipAttributes() called at start of ParseDefinition and after function parameter list
+    - Updated printer to handle function declarations with nil Body
+    - Added TestAttributeSkipping and TestAttributeTokens tests
+    - Also handles __asm__() variant, multiple consecutive attributes
 
 [ ] Confirm `testdata/example-c/hello.c` now runs and prints as expected, otherwise add tasks.

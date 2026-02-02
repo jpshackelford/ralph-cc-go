@@ -39,8 +39,10 @@ const (
 	TokenRegister // register
 	TokenConst    // const
 	TokenVolatile // volatile
-	TokenRestrict // restrict
-	TokenChar     // char
+	TokenRestrict  // restrict
+	TokenAttribute // __attribute__
+	TokenAsm       // __asm or __asm__
+	TokenChar      // char
 	TokenShort    // short
 	TokenLong     // long
 	TokenFloat    // float
@@ -135,6 +137,8 @@ var tokenNames = map[TokenType]string{
 	TokenConst:         "const",
 	TokenVolatile:      "volatile",
 	TokenRestrict:      "restrict",
+	TokenAttribute:     "__attribute__",
+	TokenAsm:           "__asm",
 	TokenChar:          "char",
 	TokenShort:         "short",
 	TokenLong:          "long",
@@ -232,8 +236,11 @@ var keywords = map[string]TokenType{
 	"register": TokenRegister,
 	"const":    TokenConst,
 	"volatile": TokenVolatile,
-	"restrict": TokenRestrict,
-	"char":     TokenChar,
+	"restrict":       TokenRestrict,
+	"__attribute__":  TokenAttribute,
+	"__asm":          TokenAsm,
+	"__asm__":        TokenAsm,
+	"char":           TokenChar,
 	"short":    TokenShort,
 	"long":     TokenLong,
 	"float":    TokenFloat,

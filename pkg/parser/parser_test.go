@@ -2992,3 +2992,102 @@ func TestVariadicFunctionDeclaration(t *testing.T) {
 		})
 	}
 }
+
+func TestAttributeSkipping(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		funcName   string
+		hasBody    bool
+		isVariadic bool
+	}{
+		{
+			"function declaration with __attribute__",
+			"int printf(const char *, ...) __attribute__((__format__ (__printf__, 1, 2)));",
+			"printf",
+			false,
+			true,
+		},
+		{
+			"function declaration with __asm",
+			`int fopen(const char *, const char *) __asm("_fopen");`,
+			"fopen",
+			false,
+			false,
+		},
+		{
+			"function with __asm and __attribute__",
+			`int popen(const char *, const char *) __asm("_popen") __attribute__((cold));`,
+			"popen",
+			false,
+			false,
+		},
+		{
+			"leading __attribute__ on function",
+			"__attribute__((deprecated)) int old_func(void);",
+			"old_func",
+			false,
+			false,
+		},
+		{
+			"leading __attribute__ on function with body",
+			"__attribute__((cold)) int rare_func(void) { return 0; }",
+			"rare_func",
+			true,
+			false,
+		},
+		{
+			"complex nested __attribute__",
+			`int getenv_s(int *, char *, int, const char *) __attribute__((availability(macosx,introduced=10.10)));`,
+			"getenv_s",
+			false,
+			false,
+		},
+		{
+			"__asm__ variant",
+			`int foo(void) __asm__("_foo");`,
+			"foo",
+			false,
+			false,
+		},
+		{
+			"multiple __attribute__ blocks",
+			`int bar(void) __attribute__((cold)) __attribute__((noinline));`,
+			"bar",
+			false,
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef, ok := def.(cabs.FunDef)
+			if !ok {
+				t.Fatalf("expected FunDef, got %T", def)
+			}
+
+			if funDef.Name != tt.funcName {
+				t.Errorf("expected function name %q, got %q", tt.funcName, funDef.Name)
+			}
+
+			if tt.hasBody && funDef.Body == nil {
+				t.Error("expected function to have body, but Body is nil")
+			}
+			if !tt.hasBody && funDef.Body != nil {
+				t.Error("expected function declaration (no body), but Body is not nil")
+			}
+
+			if funDef.Variadic != tt.isVariadic {
+				t.Errorf("expected Variadic=%v, got %v", tt.isVariadic, funDef.Variadic)
+			}
+		})
+	}
+}
