@@ -409,3 +409,41 @@ tests:
                   string_value: "hello\\nworld"
 
 
+
+  - name: "character literal in declaration"
+    input: |
+      char f() { return 'x'; }
+    ast:
+      kind: FunDef
+      name: f
+      return_type: char
+      body:
+        kind: Block
+        items:
+          - kind: Return
+            expr:
+              kind: CharLiteral
+              string_value: "x"
+
+  - name: "character literal with escape newline"
+    input: |
+      char f() { return '\n'; }
+    ast:
+      kind: FunDef
+      name: f
+      return_type: char
+      body:
+        kind: Block
+        items:
+          - kind: Return
+            expr:
+              kind: CharLiteral
+              string_value: "\\n"
+
+  - name: "character literal in comparison"
+    input: |
+      int f(char c) { if (c == 'a') return 1; return 0; }
+    ast:
+      kind: FunDef
+      name: f
+      return_type: int

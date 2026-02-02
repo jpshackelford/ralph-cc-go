@@ -135,10 +135,14 @@ The following literal handling is needed to compile programs with `#include <std
     - Added test cases: TestStringLiteral unit tests, parse.yaml data-driven tests
     - Test cases: printf("hello"), puts("hello\nworld"), puts("")
 
-[ ] Parser: Support character literals in expressions
-    - Add CharLiteral AST node to cabs package
-    - Add case for TokenChar in parsePrefix() function
-    - Character literals can appear in comparisons, assignments, etc.
-    - Test cases: char c = 'x', if (c == '\n')
+[x] Parser: Support character literals in expressions
+    - Added CharLiteral AST node to cabs package with Value string field
+    - Added case for TokenCharLit in parsePrefix() function
+    - Added parseCharLiteral() function to parser
+    - Updated printer to handle CharLiteral (outputs 'value' format)
+    - Added CharLiteral verification to parser tests
+    - Added unit tests: TestCharLiteral, TestCharLiteralInExpression
+    - Added data-driven tests in parse.yaml for character literals
+    - Test cases: char c = 'x', if (c == '\n'), return 'a'
 
 [ ] Verify hello.c after literal support is added

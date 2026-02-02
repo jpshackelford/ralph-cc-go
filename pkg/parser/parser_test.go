@@ -130,6 +130,15 @@ func verifyAST(t *testing.T, node cabs.Node, spec ASTSpec) {
 			t.Errorf("StringLiteral.Value: expected %q, got %q", spec.StringValue, strLit.Value)
 		}
 
+	case "CharLiteral":
+		charLit, ok := node.(cabs.CharLiteral)
+		if !ok {
+			t.Fatalf("expected CharLiteral, got %T", node)
+		}
+		if spec.StringValue != "" && charLit.Value != spec.StringValue {
+			t.Errorf("CharLiteral.Value: expected %q, got %q", spec.StringValue, charLit.Value)
+		}
+
 	case "Variable":
 		variable, ok := node.(cabs.Variable)
 		if !ok {
@@ -690,6 +699,73 @@ func TestStringLiteral(t *testing.T) {
 
 			if strLit.Value != tt.value {
 				t.Errorf("expected value %q, got %q", tt.value, strLit.Value)
+			}
+		})
+	}
+}
+
+func TestCharLiteral(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		value string
+	}{
+		{"simple char", `void f() { char c = 'x'; }`, "x"},
+		{"newline escape", `void f() { char c = '\n'; }`, `\n`},
+		{"tab escape", `void f() { char c = '\t'; }`, `\t`},
+		{"backslash escape", `void f() { char c = '\\'; }`, `\\`},
+		{"null char", `void f() { char c = '\0'; }`, `\0`},
+		{"quote escape", `void f() { char c = '\''; }`, `\'`},
+		{"digit char", `void f() { char c = '0'; }`, "0"},
+		{"space char", `void f() { char c = ' '; }`, " "},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			declStmt := funDef.Body.Items[0].(cabs.DeclStmt)
+			charLit, ok := declStmt.Decls[0].Initializer.(cabs.CharLiteral)
+			if !ok {
+				t.Fatalf("expected CharLiteral, got %T", declStmt.Decls[0].Initializer)
+			}
+
+			if charLit.Value != tt.value {
+				t.Errorf("expected value %q, got %q", tt.value, charLit.Value)
+			}
+		})
+	}
+}
+
+func TestCharLiteralInExpression(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"char comparison", `int f() { if (c == '\n') return 1; return 0; }`},
+		{"char assignment", `int f() { char c; c = 'x'; return 0; }`},
+		{"char in return", `char f() { return 'a'; }`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			if def == nil {
+				t.Fatal("ParseDefinition returned nil")
 			}
 		})
 	}

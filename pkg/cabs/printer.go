@@ -363,6 +363,8 @@ func (p *Printer) printExpr(expr Expr) {
 		fmt.Fprintf(p.w, "%d", e.Value)
 	case StringLiteral:
 		fmt.Fprintf(p.w, "\"%s\"", e.Value)
+	case CharLiteral:
+		fmt.Fprintf(p.w, "'%s'", e.Value)
 	case Variable:
 		fmt.Fprint(p.w, e.Name)
 	case Unary:

@@ -101,6 +101,11 @@ type StringLiteral struct {
 	Value string
 }
 
+// CharLiteral represents a character literal ('x', '\n')
+type CharLiteral struct {
+	Value string
+}
+
 // Variable represents an identifier expression
 type Variable struct {
 	Name string
@@ -340,6 +345,9 @@ func (Constant) implCabsExpr() {}
 
 func (StringLiteral) implCabsNode() {}
 func (StringLiteral) implCabsExpr() {}
+
+func (CharLiteral) implCabsNode() {}
+func (CharLiteral) implCabsExpr() {}
 
 func (Variable) implCabsNode() {}
 func (Variable) implCabsExpr() {}
