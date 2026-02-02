@@ -163,9 +163,14 @@ The following issues prevent hello.c from running correctly after compilation:
     - Added e2e test case verifying unique labels across multiple functions
     - Added expect_not test assertion support
 
-[ ] Asmgen: Emit string literal data in .rodata section  
+[x] Asmgen: Emit string literal data in .rodata section  
     - String literals generate `.Lstr0` etc labels but no data section
     - Need to emit `.section .rodata` with `.ascii` directives
+    - Added ReadOnly field to VarDecl/GlobVar structs across all IR levels
+    - Modified cshmgen.TranslateProgram to collect strings from all functions
+    - Updated asm printer to emit .rodata section for ReadOnly globals
+    - Local labels (.Lstr0 etc) not marked as .global
+    - Added e2e tests for string literal emission
 
 [ ] Asmgen: Generate proper function calls with `bl` instead of `blr`
     - Function calls use `blr x0` (indirect call through register)

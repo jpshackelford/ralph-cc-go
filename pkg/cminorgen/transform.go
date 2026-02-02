@@ -358,8 +358,10 @@ func TransformProgram(prog *csharpminor.Program) *cminor.Program {
 	// Translate global variables
 	for _, g := range prog.Globals {
 		result.Globals = append(result.Globals, cminor.GlobVar{
-			Name: g.Name,
-			Size: g.Size,
+			Name:     g.Name,
+			Size:     g.Size,
+			Init:     g.Init,
+			ReadOnly: g.ReadOnly,
 		})
 	}
 

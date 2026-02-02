@@ -24,9 +24,10 @@ func TransformProgram(prog *linear.Program) *mach.Program {
 	// Copy globals
 	for i, g := range prog.Globals {
 		machProg.Globals[i] = mach.GlobVar{
-			Name: g.Name,
-			Size: g.Size,
-			Init: g.Init,
+			Name:     g.Name,
+			Size:     g.Size,
+			Init:     g.Init,
+			ReadOnly: g.ReadOnly,
 		}
 	}
 

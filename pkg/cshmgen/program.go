@@ -26,10 +26,25 @@ func TranslateProgram(prog *clight.Program) *csharpminor.Program {
 		})
 	}
 
+	// Create a shared expression translator to collect strings across all functions
+	exprTr := NewExprTranslator(globals)
+
 	// Translate functions
 	for _, fn := range prog.Functions {
-		csharpFn := translateFunction(&fn, globals)
+		csharpFn := translateFunctionWithTranslator(&fn, exprTr)
 		result.Functions = append(result.Functions, csharpFn)
+	}
+
+	// Add collected string literals as read-only globals
+	for _, str := range exprTr.GetStrings() {
+		// String data with null terminator
+		data := append([]byte(str.Value), 0)
+		result.Globals = append(result.Globals, csharpminor.VarDecl{
+			Name:     str.Label,
+			Size:     int64(len(data)),
+			Init:     data,
+			ReadOnly: true,
+		})
 	}
 
 	return result
@@ -39,6 +54,12 @@ func TranslateProgram(prog *clight.Program) *csharpminor.Program {
 func translateFunction(fn *clight.Function, globals map[string]bool) csharpminor.Function {
 	// Build expression and statement translators
 	exprTr := NewExprTranslator(globals)
+	return translateFunctionWithTranslator(fn, exprTr)
+}
+
+// translateFunctionWithTranslator translates a function using the provided translator.
+// This allows string literals to be collected across all functions.
+func translateFunctionWithTranslator(fn *clight.Function, exprTr *ExprTranslator) csharpminor.Function {
 	stmtTr := NewStmtTranslator(exprTr)
 
 	// Build signature

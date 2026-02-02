@@ -21,10 +21,11 @@ func TransformProgram(prog *mach.Program) *asm.Program {
 	// Transform globals
 	for i, g := range prog.Globals {
 		result.Globals[i] = asm.GlobVar{
-			Name:  g.Name,
-			Size:  g.Size,
-			Init:  g.Init,
-			Align: 8, // Default alignment for 64-bit
+			Name:     g.Name,
+			Size:     g.Size,
+			Init:     g.Init,
+			Align:    8, // Default alignment for 64-bit
+			ReadOnly: g.ReadOnly,
 		}
 	}
 

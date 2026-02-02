@@ -17,9 +17,10 @@ func TransformProgram(prog *ltl.Program) *linear.Program {
 	// Copy globals
 	for i, g := range prog.Globals {
 		linearProg.Globals[i] = linear.GlobVar{
-			Name: g.Name,
-			Size: g.Size,
-			Init: g.Init,
+			Name:     g.Name,
+			Size:     g.Size,
+			Init:     g.Init,
+			ReadOnly: g.ReadOnly,
 		}
 	}
 

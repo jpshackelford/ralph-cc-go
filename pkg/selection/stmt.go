@@ -285,9 +285,10 @@ func (ctx *SelectionContext) SelectProgram(p cminor.Program) cminorsel.Program {
 	globVars := make([]cminorsel.GlobVar, len(p.Globals))
 	for i, g := range p.Globals {
 		globVars[i] = cminorsel.GlobVar{
-			Name: g.Name,
-			Size: g.Size,
-			Init: g.Init,
+			Name:     g.Name,
+			Size:     g.Size,
+			Init:     g.Init,
+			ReadOnly: g.ReadOnly,
 		}
 	}
 

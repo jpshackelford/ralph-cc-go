@@ -183,9 +183,10 @@ func TransformProgram(rtlProg *rtl.Program) *ltl.Program {
 	// Transform globals
 	for _, g := range rtlProg.Globals {
 		ltlProg.Globals = append(ltlProg.Globals, ltl.GlobVar{
-			Name: g.Name,
-			Size: g.Size,
-			Init: g.Init,
+			Name:     g.Name,
+			Size:     g.Size,
+			Init:     g.Init,
+			ReadOnly: g.ReadOnly,
 		})
 	}
 

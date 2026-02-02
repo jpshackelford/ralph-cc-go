@@ -17,10 +17,29 @@ func NewPrinter(w io.Writer) *Printer {
 
 // PrintProgram outputs an entire program
 func (p *Printer) PrintProgram(prog *Program) {
-	// Output global variables
-	if len(prog.Globals) > 0 {
+	// Separate globals into read-only (rodata) and read-write (data)
+	var rodataGlobals, dataGlobals []GlobVar
+	for _, g := range prog.Globals {
+		if g.ReadOnly {
+			rodataGlobals = append(rodataGlobals, g)
+		} else {
+			dataGlobals = append(dataGlobals, g)
+		}
+	}
+
+	// Output read-only data section (string literals, etc.)
+	if len(rodataGlobals) > 0 {
+		fmt.Fprintf(p.w, "\t.section\t.rodata\n")
+		for _, g := range rodataGlobals {
+			p.printRodataGlobal(g)
+		}
+		fmt.Fprintf(p.w, "\n")
+	}
+
+	// Output read-write data section (mutable globals)
+	if len(dataGlobals) > 0 {
 		fmt.Fprintf(p.w, "\t.data\n")
-		for _, g := range prog.Globals {
+		for _, g := range dataGlobals {
 			p.printGlobal(g)
 		}
 		fmt.Fprintf(p.w, "\n")
@@ -45,6 +64,32 @@ func (p *Printer) printGlobal(g GlobVar) {
 		}
 	} else if g.Size > 0 {
 		fmt.Fprintf(p.w, "\t.zero\t%d\n", g.Size)
+	}
+}
+
+// printRodataGlobal outputs a read-only global (e.g., string literal)
+// Local labels (.L*) are not declared as .global
+func (p *Printer) printRodataGlobal(g GlobVar) {
+	// Local labels start with .L - don't make them global
+	if len(g.Name) < 2 || g.Name[0] != '.' || g.Name[1] != 'L' {
+		fmt.Fprintf(p.w, "\t.global\t%s\n", g.Name)
+	}
+	if g.Align > 1 {
+		fmt.Fprintf(p.w, "\t.align\t%d\n", g.Align)
+	}
+	fmt.Fprintf(p.w, "%s:\n", g.Name)
+	if len(g.Init) > 0 {
+		// For string data, use .ascii directive (more compact)
+		p.printStringData(g.Init)
+	} else if g.Size > 0 {
+		fmt.Fprintf(p.w, "\t.zero\t%d\n", g.Size)
+	}
+}
+
+// printStringData outputs byte data, using .ascii for printable strings
+func (p *Printer) printStringData(data []byte) {
+	for _, b := range data {
+		fmt.Fprintf(p.w, "\t.byte\t%d\n", b)
 	}
 }
 

@@ -325,9 +325,10 @@ type Function struct {
 
 // GlobVar represents a global variable
 type GlobVar struct {
-	Name string
-	Size int64 // size in bytes
-	Init []byte // initial data (nil if uninitialized)
+	Name     string
+	Size     int64  // size in bytes
+	Init     []byte // initial data (nil if uninitialized)
+	ReadOnly bool   // true for .rodata section (e.g., string literals)
 }
 
 // Program represents a complete Cminor program

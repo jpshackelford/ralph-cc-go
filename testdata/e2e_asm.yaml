@@ -157,3 +157,36 @@ tests:
     expect_not:
       - ".L1:"     # plain .L1 without function prefix should not exist
       - ".L2:"     # plain .L2 without function prefix should not exist
+
+  - name: "string literal in rodata section"
+    # String literals should be emitted in .rodata section
+    input: |
+      int main() { char* msg = "hello"; return 0; }
+    expect:
+      - ".section\t.rodata"   # read-only data section for strings
+      - ".Lstr0:"             # string label
+      - ".byte\t104"          # 'h' = 104
+      - ".byte\t101"          # 'e' = 101
+      - ".byte\t108"          # 'l' = 108
+      - ".byte\t111"          # 'o' = 111
+      - ".byte\t0"            # null terminator
+      - "adrp"                # address page calculation
+      - ".text"               # code section after rodata
+      - ".global\tmain"       # function definition
+    expect_not:
+      - ".global\t.Lstr0"     # local string labels should NOT be global
+
+  - name: "multiple string literals"
+    # Multiple strings should get unique labels
+    input: |
+      int main() {
+        char* a = "foo";
+        char* b = "bar";
+        return 0;
+      }
+    expect:
+      - ".section\t.rodata"
+      - ".Lstr0:"             # first string
+      - ".Lstr1:"             # second string
+      - ".text"
+      - ".global\tmain"

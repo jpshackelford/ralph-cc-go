@@ -408,8 +408,10 @@ type Sgoto struct {
 
 // VarDecl represents a variable declaration
 type VarDecl struct {
-	Name string
-	Size int64 // size in bytes
+	Name     string
+	Size     int64  // size in bytes
+	Init     []byte // initial data (nil if uninitialized)
+	ReadOnly bool   // true for read-only data (e.g., string literals)
 }
 
 // Sig represents a function signature
