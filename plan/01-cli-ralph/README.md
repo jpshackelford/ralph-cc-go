@@ -23,15 +23,6 @@ function save_plan() {
     git add plan && git diff --cached --quiet plan || git commit plan -m "Update plan"
 }
 
-function ralph4() {
-    save_plan
-    ralph1
-    ralph1
-    ralph1
-    ralph1
-}
-
-
 ```
 
 ## Watching
