@@ -2993,6 +2993,98 @@ func TestVariadicFunctionDeclaration(t *testing.T) {
 	}
 }
 
+func TestInlineKeyword(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		funcName   string
+		returnType string
+		hasBody    bool
+	}{
+		{
+			"inline function declaration",
+			"inline int foo(void);",
+			"foo",
+			"int",
+			false,
+		},
+		{
+			"__inline function declaration",
+			"__inline int bar(void);",
+			"bar",
+			"int",
+			false,
+		},
+		{
+			"__inline__ function declaration",
+			"__inline__ int baz(void);",
+			"baz",
+			"int",
+			false,
+		},
+		{
+			"inline function with body",
+			"inline int square(int x) { return x * x; }",
+			"square",
+			"int",
+			true,
+		},
+		{
+			"extern inline function",
+			"extern inline int helper(void);",
+			"helper",
+			"int",
+			false,
+		},
+		{
+			"static inline function",
+			"static inline int internal(void) { return 1; }",
+			"internal",
+			"int",
+			true,
+		},
+		{
+			"inline with __attribute__",
+			"extern __inline __attribute__((always_inline)) int fast_func(int a);",
+			"fast_func",
+			"int",
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef, ok := def.(cabs.FunDef)
+			if !ok {
+				t.Fatalf("expected FunDef, got %T", def)
+			}
+
+			if funDef.Name != tt.funcName {
+				t.Errorf("expected function name %q, got %q", tt.funcName, funDef.Name)
+			}
+
+			if funDef.ReturnType != tt.returnType {
+				t.Errorf("expected return type %q, got %q", tt.returnType, funDef.ReturnType)
+			}
+
+			if tt.hasBody && funDef.Body == nil {
+				t.Error("expected function to have body, but Body is nil")
+			}
+			if !tt.hasBody && funDef.Body != nil {
+				t.Error("expected function declaration (no body), but Body is not nil")
+			}
+		})
+	}
+}
+
 func TestAttributeSkipping(t *testing.T) {
 	tests := []struct {
 		name       string

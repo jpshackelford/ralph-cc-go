@@ -78,10 +78,13 @@ The following parser limitations prevent compiling programs with `#include <stdi
     - Could add as pre-defined typedef or special token
     - Cascading effect: `va_list` typedef chain fails → 55+ "type specifier in parameter" errors
 
-[ ] Parser: Support `__inline` and `inline` keywords
+[x] Parser: Support `__inline` and `inline` keywords
     - System headers use `extern __inline __attribute__(...) int __sputc(...) { ... }`
-    - Need to skip/handle `__inline` as function specifier (like storage class)
-    - Also need to handle `inline` for C99 compatibility
+    - Added `TokenInline` token type to lexer for `inline`, `__inline`, `__inline__`
+    - Added `isFunctionSpecifier()` helper to parser
+    - Updated `ParseDefinition` to skip function specifiers along with storage class specifiers
+    - Also added `skipAttributes()` call after function specifiers to handle `extern __inline __attribute__((...))`
+    - Added lexer tests (TestInlineTokens) and parser tests (TestInlineKeyword)
 
 [ ] Parser: Support variable declarations without function context
     - System headers have `extern const int sys_nerr;` and `extern const char *const sys_errlist[];`

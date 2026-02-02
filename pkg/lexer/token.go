@@ -49,6 +49,7 @@ const (
 	TokenDouble   // double
 	TokenSigned   // signed
 	TokenUnsigned // unsigned
+	TokenInline   // inline, __inline, __inline__
 
 	// Operators
 	TokenPlus      // +
@@ -146,6 +147,7 @@ var tokenNames = map[TokenType]string{
 	TokenDouble:        "double",
 	TokenSigned:        "signed",
 	TokenUnsigned:      "unsigned",
+	TokenInline:        "inline",
 	TokenPlus:          "+",
 	TokenMinus:         "-",
 	TokenStar:          "*",
@@ -245,8 +247,11 @@ var keywords = map[string]TokenType{
 	"long":     TokenLong,
 	"float":    TokenFloat,
 	"double":   TokenDouble,
-	"signed":   TokenSigned,
-	"unsigned": TokenUnsigned,
+	"signed":     TokenSigned,
+	"unsigned":   TokenUnsigned,
+	"inline":     TokenInline,
+	"__inline":   TokenInline,
+	"__inline__": TokenInline,
 }
 
 // LookupIdent returns the token type for an identifier (keyword or IDENT)

@@ -302,6 +302,27 @@ func TestAttributeTokens(t *testing.T) {
 	}
 }
 
+func TestInlineTokens(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected TokenType
+	}{
+		{"inline", TokenInline},
+		{"__inline", TokenInline},
+		{"__inline__", TokenInline},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			l := New(tt.input)
+			tok := l.NextToken()
+			if tok.Type != tt.expected {
+				t.Errorf("expected %s for %q, got %s", tt.expected, tt.input, tok.Type)
+			}
+		})
+	}
+}
+
 func TestAttributeInContext(t *testing.T) {
 	input := `int foo(void) __attribute__((cold)) __asm("_foo");`
 

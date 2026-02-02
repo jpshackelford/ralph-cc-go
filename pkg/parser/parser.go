@@ -199,10 +199,13 @@ func (p *Parser) ParseDefinition() cabs.Definition {
 		return p.parseEnumDef()
 	}
 
-	// Skip storage class specifiers for now
-	for p.isStorageClassSpecifier() {
+	// Skip storage class specifiers and function specifiers
+	for p.isStorageClassSpecifier() || p.isFunctionSpecifier() {
 		p.nextToken()
 	}
+
+	// Skip any __attribute__ between specifiers and type
+	p.skipAttributes()
 
 	// Skip type qualifiers
 	for p.isTypeQualifier() {
@@ -688,6 +691,10 @@ func (p *Parser) isStorageClassSpecifier() bool {
 		return true
 	}
 	return false
+}
+
+func (p *Parser) isFunctionSpecifier() bool {
+	return p.curTokenIs(lexer.TokenInline)
 }
 
 func (p *Parser) isTypeQualifier() bool {
