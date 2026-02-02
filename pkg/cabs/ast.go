@@ -96,6 +96,11 @@ type Constant struct {
 	Value int64
 }
 
+// StringLiteral represents a string literal ("hello")
+type StringLiteral struct {
+	Value string
+}
+
 // Variable represents an identifier expression
 type Variable struct {
 	Name string
@@ -332,6 +337,9 @@ type VarDef struct {
 // Marker methods for interface implementation
 func (Constant) implCabsNode() {}
 func (Constant) implCabsExpr() {}
+
+func (StringLiteral) implCabsNode() {}
+func (StringLiteral) implCabsExpr() {}
 
 func (Variable) implCabsNode() {}
 func (Variable) implCabsExpr() {}

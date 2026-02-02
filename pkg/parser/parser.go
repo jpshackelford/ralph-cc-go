@@ -2035,6 +2035,8 @@ func (p *Parser) parsePrefix() cabs.Expr {
 	switch p.curToken.Type {
 	case lexer.TokenInt:
 		return p.parseIntegerLiteral()
+	case lexer.TokenString:
+		return p.parseStringLiteral()
 	case lexer.TokenIdent:
 		return p.parseIdentifier()
 	case lexer.TokenLParen:
@@ -2067,6 +2069,12 @@ func (p *Parser) parseIntegerLiteral() cabs.Expr {
 	fmt.Sscanf(lit, "%d", &value)
 	p.nextToken() // move past the literal
 	return cabs.Constant{Value: value}
+}
+
+func (p *Parser) parseStringLiteral() cabs.Expr {
+	value := p.curToken.Literal
+	p.nextToken() // move past the literal
+	return cabs.StringLiteral{Value: value}
 }
 
 func (p *Parser) parseIdentifier() cabs.Expr {

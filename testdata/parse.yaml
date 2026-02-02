@@ -368,4 +368,44 @@ tests:
               kind: Constant
               value: 0
 
+  - name: "string literal in function call"
+    input: |
+      void f() { printf("hello"); }
+    ast:
+      kind: FunDef
+      name: f
+      return_type: void
+      body:
+        kind: Block
+        items:
+          - kind: Computation
+            expr:
+              kind: Call
+              func:
+                kind: Variable
+                name: printf
+              args:
+                - kind: StringLiteral
+                  string_value: "hello"
+
+  - name: "string literal with escape sequence"
+    input: |
+      void f() { puts("hello\nworld"); }
+    ast:
+      kind: FunDef
+      name: f
+      return_type: void
+      body:
+        kind: Block
+        items:
+          - kind: Computation
+            expr:
+              kind: Call
+              func:
+                kind: Variable
+                name: puts
+              args:
+                - kind: StringLiteral
+                  string_value: "hello\\nworld"
+
 

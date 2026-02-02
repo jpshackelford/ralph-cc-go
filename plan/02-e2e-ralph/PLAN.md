@@ -125,11 +125,15 @@ The following literal handling is needed to compile programs with `#include <std
     - Added TestCharLiteral test covering: 'a', '\n', '\t', '\\', '\0', '\'', '0', ' '
     - Added TestCharLiteralInContext test for character literals in code context
 
-[ ] Parser: Support string literals in expressions
-    - Add StringLiteral AST node to cabs package
-    - Add case for TokenString in parsePrefix() function
-    - String literals can appear as function arguments, initializers, etc.
-    - Test cases: printf("hello"), char *s = "world"
+[x] Parser: Support string literals in expressions
+    - Added StringLiteral AST node to cabs package with Value string field
+    - Added case for TokenString in parsePrefix() function
+    - Added parseStringLiteral() function to parser
+    - Updated printer to handle StringLiteral (outputs "value" format)
+    - Added ASTSpec verification for StringLiteral in parser tests
+    - Added Computation and Call verification to parser tests for YAML testing
+    - Added test cases: TestStringLiteral unit tests, parse.yaml data-driven tests
+    - Test cases: printf("hello"), puts("hello\nworld"), puts("")
 
 [ ] Parser: Support character literals in expressions
     - Add CharLiteral AST node to cabs package

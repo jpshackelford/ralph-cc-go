@@ -19,16 +19,19 @@ type TestSpec struct {
 
 // ASTSpec represents the expected AST structure
 type ASTSpec struct {
-	Kind       string    `yaml:"kind"`
-	Name       string    `yaml:"name,omitempty"`
-	ReturnType string    `yaml:"return_type,omitempty"`
-	Body       *ASTSpec  `yaml:"body,omitempty"`
-	Items      []ASTSpec `yaml:"items,omitempty"`
-	Expr       *ASTSpec  `yaml:"expr,omitempty"`
-	Left       *ASTSpec  `yaml:"left,omitempty"`
-	Right      *ASTSpec  `yaml:"right,omitempty"`
-	Op         string    `yaml:"op,omitempty"`
-	Value      *int64    `yaml:"value,omitempty"`
+	Kind        string    `yaml:"kind"`
+	Name        string    `yaml:"name,omitempty"`
+	ReturnType  string    `yaml:"return_type,omitempty"`
+	Body        *ASTSpec  `yaml:"body,omitempty"`
+	Items       []ASTSpec `yaml:"items,omitempty"`
+	Expr        *ASTSpec  `yaml:"expr,omitempty"`
+	Left        *ASTSpec  `yaml:"left,omitempty"`
+	Right       *ASTSpec  `yaml:"right,omitempty"`
+	Op          string    `yaml:"op,omitempty"`
+	Value       *int64    `yaml:"value,omitempty"`
+	StringValue string    `yaml:"string_value,omitempty"`
+	Func        *ASTSpec  `yaml:"func,omitempty"`
+	Args        []ASTSpec `yaml:"args,omitempty"`
 }
 
 // TestFile represents the parse.yaml file structure
@@ -118,6 +121,15 @@ func verifyAST(t *testing.T, node cabs.Node, spec ASTSpec) {
 			t.Errorf("Constant.Value: expected %d, got %d", *spec.Value, constant.Value)
 		}
 
+	case "StringLiteral":
+		strLit, ok := node.(cabs.StringLiteral)
+		if !ok {
+			t.Fatalf("expected StringLiteral, got %T", node)
+		}
+		if spec.StringValue != "" && strLit.Value != spec.StringValue {
+			t.Errorf("StringLiteral.Value: expected %q, got %q", spec.StringValue, strLit.Value)
+		}
+
 	case "Variable":
 		variable, ok := node.(cabs.Variable)
 		if !ok {
@@ -170,6 +182,30 @@ func verifyAST(t *testing.T, node cabs.Node, spec ASTSpec) {
 		}
 		// We'd need Cond, Then, Else fields in ASTSpec to fully verify
 		_ = cond
+
+	case "Computation":
+		comp, ok := node.(cabs.Computation)
+		if !ok {
+			t.Fatalf("expected Computation, got %T", node)
+		}
+		if spec.Expr != nil {
+			verifyAST(t, comp.Expr, *spec.Expr)
+		}
+
+	case "Call":
+		call, ok := node.(cabs.Call)
+		if !ok {
+			t.Fatalf("expected Call, got %T", node)
+		}
+		if spec.Func != nil {
+			verifyAST(t, call.Func, *spec.Func)
+		}
+		if len(spec.Args) != len(call.Args) {
+			t.Fatalf("Call.Args: expected %d args, got %d", len(spec.Args), len(call.Args))
+		}
+		for i, argSpec := range spec.Args {
+			verifyAST(t, call.Args[i], argSpec)
+		}
 
 	default:
 		t.Fatalf("unknown AST kind: %s", spec.Kind)
@@ -618,6 +654,42 @@ func TestFunctionCall(t *testing.T) {
 
 			if len(call.Args) != tt.argCount {
 				t.Errorf("expected %d args, got %d", tt.argCount, len(call.Args))
+			}
+		})
+	}
+}
+
+func TestStringLiteral(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		value string
+	}{
+		{"simple string", `void f() { printf("hello"); }`, "hello"},
+		{"string with escape", `void f() { puts("hello\nworld"); }`, `hello\nworld`},
+		{"empty string", `void f() { puts(""); }`, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			comp := funDef.Body.Items[0].(cabs.Computation)
+			call := comp.Expr.(cabs.Call)
+			strLit, ok := call.Args[0].(cabs.StringLiteral)
+			if !ok {
+				t.Fatalf("expected StringLiteral, got %T", call.Args[0])
+			}
+
+			if strLit.Value != tt.value {
+				t.Errorf("expected value %q, got %q", tt.value, strLit.Value)
 			}
 		})
 	}
