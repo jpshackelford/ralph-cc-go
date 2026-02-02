@@ -99,7 +99,7 @@ We need to find system include directories automatically.
 
 **Goal:** Parse preprocessing directives
 
-**Status:** TODO
+**Status:** DONE
 
 ### Context
 
@@ -107,25 +107,25 @@ Directives start with `#` at the beginning of a line (after whitespace). The dir
 
 ### Tasks
 
-- [ ] Create `pkg/cpp/directive.go` for directive parsing
-- [ ] Define directive types:
-  - [ ] `#include <file>` / `#include "file"`
-  - [ ] `#define NAME` / `#define NAME value` / `#define NAME(args) value`
-  - [ ] `#undef NAME`
-  - [ ] `#if expr`
-  - [ ] `#ifdef NAME` / `#ifndef NAME`
-  - [ ] `#elif expr`
-  - [ ] `#else`
-  - [ ] `#endif`
-  - [ ] `#line number ["filename"]`
-  - [ ] `#error message`
-  - [ ] `#warning message` (extension)
-  - [ ] `#pragma ...` (pass through or ignore)
-  - [ ] `# number "filename" [flags]` (GCC line marker)
-- [ ] Parse directive arguments correctly
-- [ ] Handle directive continuation lines (`\` at end)
-- [ ] Report errors for malformed directives
-- [ ] Add tests for directive parsing
+- [x] Create `pkg/cpp/directive.go` for directive parsing
+- [x] Define directive types:
+  - [x] `#include <file>` / `#include "file"`
+  - [x] `#define NAME` / `#define NAME value` / `#define NAME(args) value`
+  - [x] `#undef NAME`
+  - [x] `#if expr`
+  - [x] `#ifdef NAME` / `#ifndef NAME`
+  - [x] `#elif expr`
+  - [x] `#else`
+  - [x] `#endif`
+  - [x] `#line number ["filename"]`
+  - [x] `#error message`
+  - [x] `#warning message` (extension)
+  - [x] `#pragma ...` (pass through or ignore)
+  - [x] `# number "filename" [flags]` (GCC line marker)
+- [x] Parse directive arguments correctly
+- [x] Handle directive continuation lines (`\` at end) (via lexer)
+- [x] Report errors for malformed directives
+- [x] Add tests for directive parsing
 
 ## Milestone 4: Macro Definition and Storage
 
