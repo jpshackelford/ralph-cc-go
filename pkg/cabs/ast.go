@@ -284,8 +284,9 @@ const (
 
 // TypedefDef represents a typedef declaration
 type TypedefDef struct {
-	TypeSpec string
-	Name     string
+	TypeSpec    string
+	Name        string
+	InlineType  Definition // optional inline struct/union/enum definition
 }
 
 // StructField represents a field in a struct definition

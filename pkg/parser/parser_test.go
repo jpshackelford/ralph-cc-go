@@ -2176,6 +2176,205 @@ func TestTypedefUse(t *testing.T) {
 	}
 }
 
+func TestTypedefInlineStructUnion(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		defName    string
+		isUnion    bool
+		fieldCount int
+		fields     []struct {
+			typeSpec string
+			name     string
+		}
+	}{
+		{
+			name:       "anonymous inline struct typedef",
+			input:      `typedef struct { int x; int y; } Point;`,
+			defName:    "Point",
+			isUnion:    false,
+			fieldCount: 2,
+			fields: []struct {
+				typeSpec string
+				name     string
+			}{
+				{"int", "x"},
+				{"int", "y"},
+			},
+		},
+		{
+			name:       "anonymous inline union typedef",
+			input:      `typedef union { char bytes[4]; int value; } IntBytes;`,
+			defName:    "IntBytes",
+			isUnion:    true,
+			fieldCount: 2,
+			fields: []struct {
+				typeSpec string
+				name     string
+			}{
+				{"char[]", "bytes"},
+				{"int", "value"},
+			},
+		},
+		{
+			name:       "mbstate_t-like union typedef",
+			input:      `typedef union { char __mbstate8[128]; long long _mbstateL; } __mbstate_t;`,
+			defName:    "__mbstate_t",
+			isUnion:    true,
+			fieldCount: 2,
+			fields: []struct {
+				typeSpec string
+				name     string
+			}{
+				{"char[]", "__mbstate8"},
+				{"long long", "_mbstateL"},
+			},
+		},
+		{
+			name:       "typedef struct with tag name",
+			input:      `typedef struct _Point { int x; int y; } Point;`,
+			defName:    "Point",
+			isUnion:    false,
+			fieldCount: 2,
+			fields: []struct {
+				typeSpec string
+				name     string
+			}{
+				{"int", "x"},
+				{"int", "y"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			typedefDef, ok := def.(cabs.TypedefDef)
+			if !ok {
+				t.Fatalf("expected TypedefDef, got %T", def)
+			}
+
+			if typedefDef.Name != tt.defName {
+				t.Errorf("expected name %q, got %q", tt.defName, typedefDef.Name)
+			}
+
+			if typedefDef.InlineType == nil {
+				t.Fatal("expected InlineType to be set, got nil")
+			}
+
+			if tt.isUnion {
+				unionDef, ok := typedefDef.InlineType.(cabs.UnionDef)
+				if !ok {
+					t.Fatalf("expected UnionDef inline, got %T", typedefDef.InlineType)
+				}
+
+				if len(unionDef.Fields) != tt.fieldCount {
+					t.Fatalf("expected %d fields, got %d", tt.fieldCount, len(unionDef.Fields))
+				}
+
+				for i, expected := range tt.fields {
+					if unionDef.Fields[i].TypeSpec != expected.typeSpec {
+						t.Errorf("field %d: expected type %q, got %q", i, expected.typeSpec, unionDef.Fields[i].TypeSpec)
+					}
+					if unionDef.Fields[i].Name != expected.name {
+						t.Errorf("field %d: expected name %q, got %q", i, expected.name, unionDef.Fields[i].Name)
+					}
+				}
+			} else {
+				structDef, ok := typedefDef.InlineType.(cabs.StructDef)
+				if !ok {
+					t.Fatalf("expected StructDef inline, got %T", typedefDef.InlineType)
+				}
+
+				if len(structDef.Fields) != tt.fieldCount {
+					t.Fatalf("expected %d fields, got %d", tt.fieldCount, len(structDef.Fields))
+				}
+
+				for i, expected := range tt.fields {
+					if structDef.Fields[i].TypeSpec != expected.typeSpec {
+						t.Errorf("field %d: expected type %q, got %q", i, expected.typeSpec, structDef.Fields[i].TypeSpec)
+					}
+					if structDef.Fields[i].Name != expected.name {
+						t.Errorf("field %d: expected name %q, got %q", i, expected.name, structDef.Fields[i].Name)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestTypedefInlineEnum(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		defName    string
+		valueCount int
+		values     []string
+	}{
+		{
+			name:       "anonymous inline enum typedef",
+			input:      `typedef enum { RED, GREEN, BLUE } Color;`,
+			defName:    "Color",
+			valueCount: 3,
+			values:     []string{"RED", "GREEN", "BLUE"},
+		},
+		{
+			name:       "inline enum typedef with values",
+			input:      `typedef enum { NONE = 0, SOME = 1, ALL = 2 } Level;`,
+			defName:    "Level",
+			valueCount: 3,
+			values:     []string{"NONE", "SOME", "ALL"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			typedefDef, ok := def.(cabs.TypedefDef)
+			if !ok {
+				t.Fatalf("expected TypedefDef, got %T", def)
+			}
+
+			if typedefDef.Name != tt.defName {
+				t.Errorf("expected name %q, got %q", tt.defName, typedefDef.Name)
+			}
+
+			if typedefDef.InlineType == nil {
+				t.Fatal("expected InlineType to be set, got nil")
+			}
+
+			enumDef, ok := typedefDef.InlineType.(cabs.EnumDef)
+			if !ok {
+				t.Fatalf("expected EnumDef inline, got %T", typedefDef.InlineType)
+			}
+
+			if len(enumDef.Values) != tt.valueCount {
+				t.Fatalf("expected %d values, got %d", tt.valueCount, len(enumDef.Values))
+			}
+
+			for i, expected := range tt.values {
+				if enumDef.Values[i].Name != expected {
+					t.Errorf("value %d: expected %q, got %q", i, expected, enumDef.Values[i].Name)
+				}
+			}
+		})
+	}
+}
+
 func TestStructDefinition(t *testing.T) {
 	tests := []struct {
 		name       string

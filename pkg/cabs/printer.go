@@ -72,7 +72,51 @@ func (p *Printer) printFunDef(f FunDef) {
 }
 
 func (p *Printer) printTypedefDef(t TypedefDef) {
-	fmt.Fprintf(p.w, "typedef %s %s;\n", t.TypeSpec, t.Name)
+	if t.InlineType != nil {
+		// Handle inline struct/union/enum definitions
+		switch inline := t.InlineType.(type) {
+		case StructDef:
+			fmt.Fprint(p.w, "typedef struct {\n")
+			p.indent++
+			for _, field := range inline.Fields {
+				p.writeIndent()
+				fmt.Fprintf(p.w, "%s %s;\n", field.TypeSpec, field.Name)
+			}
+			p.indent--
+			fmt.Fprintf(p.w, "} %s;\n", t.Name)
+		case UnionDef:
+			fmt.Fprint(p.w, "typedef union {\n")
+			p.indent++
+			for _, field := range inline.Fields {
+				p.writeIndent()
+				fmt.Fprintf(p.w, "%s %s;\n", field.TypeSpec, field.Name)
+			}
+			p.indent--
+			fmt.Fprintf(p.w, "} %s;\n", t.Name)
+		case EnumDef:
+			fmt.Fprint(p.w, "typedef enum {\n")
+			p.indent++
+			for i, val := range inline.Values {
+				p.writeIndent()
+				fmt.Fprint(p.w, val.Name)
+				if val.Value != nil {
+					fmt.Fprint(p.w, " = ")
+					p.printExpr(val.Value)
+				}
+				if i < len(inline.Values)-1 {
+					fmt.Fprint(p.w, ",")
+				}
+				fmt.Fprintln(p.w)
+			}
+			p.indent--
+			fmt.Fprintf(p.w, "} %s;\n", t.Name)
+		default:
+			// Fall back to simple typedef
+			fmt.Fprintf(p.w, "typedef %s %s;\n", t.TypeSpec, t.Name)
+		}
+	} else {
+		fmt.Fprintf(p.w, "typedef %s %s;\n", t.TypeSpec, t.Name)
+	}
 }
 
 func (p *Printer) printStructDef(s StructDef) {

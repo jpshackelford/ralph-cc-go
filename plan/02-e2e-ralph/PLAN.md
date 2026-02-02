@@ -66,11 +66,13 @@ The following parser limitations prevent compiling programs with `#include <stdi
 
 The following parser limitations prevent compiling programs with `#include <stdio.h>`:
 
-[ ] Parser: Support `typedef struct/union { ... } name;` (anonymous inline definitions)
+[x] Parser: Support `typedef struct/union { ... } name;` (anonymous inline definitions)
     - System headers use `typedef union { char __mbstate8[128]; long long _mbstateL; } __mbstate_t;`
-    - Current parser expects struct/union to be followed by an identifier name, not `{`
-    - Need to parse inline struct/union body within typedef declarations
-    - ~2 direct errors ("expected typedef name, got {") cascade to many more
+    - Added InlineType field to TypedefDef to store inline struct/union/enum definitions
+    - Added parseStructBodyForTypedef() and parseEnumBodyForTypedef() helper functions
+    - Updated parseTypedef() to detect and parse inline struct/union/enum definitions
+    - Updated printer to output inline struct/union/enum in typedef correctly
+    - Added comprehensive tests: TestTypedefInlineStructUnion, TestTypedefInlineEnum
 
 [ ] Parser: Support `__builtin_va_list` compiler built-in type
     - macOS headers use `typedef __builtin_va_list __darwin_va_list;`

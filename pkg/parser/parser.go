@@ -641,6 +641,173 @@ func (p *Parser) parseTypedef() cabs.Definition {
 		return nil
 	}
 
+	// Check for inline struct/union/enum definition
+	// typedef struct { ... } name;
+	// typedef union { ... } name;
+	// typedef enum { ... } name;
+	if p.curTokenIs(lexer.TokenStruct) || p.curTokenIs(lexer.TokenUnion) {
+		isUnion := p.curTokenIs(lexer.TokenUnion)
+		p.nextToken() // consume 'struct' or 'union'
+
+		// Check for optional tag name (e.g., typedef struct Tag { ... } Name;)
+		tagName := ""
+		if p.curTokenIs(lexer.TokenIdent) {
+			tagName = p.curToken.Literal
+			p.nextToken()
+		}
+
+		// If there's a '{', parse the inline body
+		if p.curTokenIs(lexer.TokenLBrace) {
+			inlineDef := p.parseStructBodyForTypedef(tagName, isUnion)
+			if inlineDef == nil {
+				return nil
+			}
+
+			// Handle pointer types after the inline definition
+			typeSpec := ""
+			for p.curTokenIs(lexer.TokenStar) {
+				typeSpec = typeSpec + "*"
+				p.nextToken()
+				// Skip type qualifiers after pointer (const, volatile, restrict)
+				for p.isTypeQualifier() {
+					p.nextToken()
+				}
+			}
+
+			// Parse the typedef name
+			if !p.curTokenIs(lexer.TokenIdent) {
+				p.addError(fmt.Sprintf("expected typedef name after inline struct/union, got %s", p.curToken.Type))
+				return nil
+			}
+			name := p.curToken.Literal
+			p.nextToken()
+
+			if !p.expect(lexer.TokenSemicolon) {
+				return nil
+			}
+
+			// Register the typedef name
+			p.typedefs[name] = true
+
+			return cabs.TypedefDef{TypeSpec: typeSpec, Name: name, InlineType: inlineDef}
+		}
+
+		// Otherwise, it's typedef struct Name name; or typedef struct Name *name;
+		// Build the type specifier from what we've seen
+		typeSpec := "struct"
+		if isUnion {
+			typeSpec = "union"
+		}
+		if tagName != "" {
+			typeSpec = typeSpec + " " + tagName
+		}
+
+		// Handle pointer types with optional qualifiers
+		for p.curTokenIs(lexer.TokenStar) {
+			typeSpec = typeSpec + "*"
+			p.nextToken()
+			// Skip type qualifiers after pointer (const, volatile, restrict)
+			for p.isTypeQualifier() {
+				p.nextToken()
+			}
+		}
+
+		if !p.curTokenIs(lexer.TokenIdent) {
+			p.addError(fmt.Sprintf("expected typedef name, got %s", p.curToken.Type))
+			return nil
+		}
+		name := p.curToken.Literal
+		p.nextToken()
+
+		if !p.expect(lexer.TokenSemicolon) {
+			return nil
+		}
+
+		// Register the typedef name
+		p.typedefs[name] = true
+
+		return cabs.TypedefDef{TypeSpec: typeSpec, Name: name}
+	}
+
+	// Check for inline enum definition
+	// typedef enum { ... } name;
+	if p.curTokenIs(lexer.TokenEnum) {
+		p.nextToken() // consume 'enum'
+
+		// Check for optional tag name
+		tagName := ""
+		if p.curTokenIs(lexer.TokenIdent) {
+			tagName = p.curToken.Literal
+			p.nextToken()
+		}
+
+		// If there's a '{', parse the inline body
+		if p.curTokenIs(lexer.TokenLBrace) {
+			inlineDef := p.parseEnumBodyForTypedef(tagName)
+			if inlineDef == nil {
+				return nil
+			}
+
+			// Handle pointer types after the inline definition (rare but valid)
+			typeSpec := ""
+			for p.curTokenIs(lexer.TokenStar) {
+				typeSpec = typeSpec + "*"
+				p.nextToken()
+				for p.isTypeQualifier() {
+					p.nextToken()
+				}
+			}
+
+			// Parse the typedef name
+			if !p.curTokenIs(lexer.TokenIdent) {
+				p.addError(fmt.Sprintf("expected typedef name after inline enum, got %s", p.curToken.Type))
+				return nil
+			}
+			name := p.curToken.Literal
+			p.nextToken()
+
+			if !p.expect(lexer.TokenSemicolon) {
+				return nil
+			}
+
+			// Register the typedef name
+			p.typedefs[name] = true
+
+			return cabs.TypedefDef{TypeSpec: typeSpec, Name: name, InlineType: inlineDef}
+		}
+
+		// Otherwise, it's typedef enum Name name;
+		typeSpec := "enum"
+		if tagName != "" {
+			typeSpec = typeSpec + " " + tagName
+		}
+
+		// Handle pointer types
+		for p.curTokenIs(lexer.TokenStar) {
+			typeSpec = typeSpec + "*"
+			p.nextToken()
+			for p.isTypeQualifier() {
+				p.nextToken()
+			}
+		}
+
+		if !p.curTokenIs(lexer.TokenIdent) {
+			p.addError(fmt.Sprintf("expected typedef name, got %s", p.curToken.Type))
+			return nil
+		}
+		name := p.curToken.Literal
+		p.nextToken()
+
+		if !p.expect(lexer.TokenSemicolon) {
+			return nil
+		}
+
+		p.typedefs[name] = true
+
+		return cabs.TypedefDef{TypeSpec: typeSpec, Name: name}
+	}
+
+	// Regular typedef (not inline struct/union/enum)
 	typeSpec := p.parseCompoundTypeSpecifier()
 
 	// Handle pointer types with optional qualifiers
@@ -669,6 +836,132 @@ func (p *Parser) parseTypedef() cabs.Definition {
 	p.typedefs[name] = true
 
 	return cabs.TypedefDef{TypeSpec: typeSpec, Name: name}
+}
+
+// parseStructBodyForTypedef parses the body of a struct/union for typedef (without trailing semicolon)
+func (p *Parser) parseStructBodyForTypedef(name string, isUnion bool) cabs.Definition {
+	p.nextToken() // consume '{'
+
+	var fields []cabs.StructField
+
+	for !p.curTokenIs(lexer.TokenRBrace) && !p.curTokenIs(lexer.TokenEOF) {
+		// Parse field: type name;
+		if !p.isTypeSpecifier() && !p.isTypeQualifier() {
+			p.addError(fmt.Sprintf("expected type specifier in struct field, got %s", p.curToken.Type))
+			p.nextToken()
+			continue
+		}
+
+		// Skip type qualifiers
+		for p.isTypeQualifier() {
+			p.nextToken()
+		}
+
+		typeSpec := p.parseCompoundTypeSpecifier()
+
+		// Handle pointer types with optional qualifiers
+		for p.curTokenIs(lexer.TokenStar) {
+			typeSpec = typeSpec + "*"
+			p.nextToken()
+			// Skip type qualifiers after pointer (const, volatile, restrict)
+			for p.isTypeQualifier() {
+				p.nextToken()
+			}
+		}
+
+		// Check for function pointer field: type (*name)(params)
+		if p.curTokenIs(lexer.TokenLParen) && p.peekTokenIs(lexer.TokenStar) {
+			field := p.parseFunctionPointerField(typeSpec)
+			if field != nil {
+				fields = append(fields, *field)
+			}
+			continue
+		}
+
+		// Field name
+		if !p.curTokenIs(lexer.TokenIdent) {
+			p.addError(fmt.Sprintf("expected field name, got %s", p.curToken.Type))
+			continue
+		}
+		fieldName := p.curToken.Literal
+		p.nextToken()
+
+		// Handle array fields
+		for p.curTokenIs(lexer.TokenLBracket) {
+			p.nextToken() // consume '['
+			for !p.curTokenIs(lexer.TokenRBracket) && !p.curTokenIs(lexer.TokenEOF) {
+				p.nextToken()
+			}
+			if p.curTokenIs(lexer.TokenRBracket) {
+				p.nextToken()
+			}
+			typeSpec = typeSpec + "[]"
+		}
+
+		fields = append(fields, cabs.StructField{TypeSpec: typeSpec, Name: fieldName})
+
+		// Expect semicolon
+		if !p.expect(lexer.TokenSemicolon) {
+			continue
+		}
+	}
+
+	if !p.curTokenIs(lexer.TokenRBrace) {
+		p.addError(fmt.Sprintf("expected '}' at end of struct body, got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume '}'
+
+	// Note: Don't consume trailing semicolon here, the typedef handler will do it
+
+	if isUnion {
+		return cabs.UnionDef{Name: name, Fields: fields}
+	}
+	return cabs.StructDef{Name: name, Fields: fields}
+}
+
+// parseEnumBodyForTypedef parses the body of an enum for typedef (without trailing semicolon)
+func (p *Parser) parseEnumBodyForTypedef(name string) cabs.Definition {
+	p.nextToken() // consume '{'
+
+	var values []cabs.EnumVal
+
+	for !p.curTokenIs(lexer.TokenRBrace) && !p.curTokenIs(lexer.TokenEOF) {
+		// Enumerator name
+		if !p.curTokenIs(lexer.TokenIdent) {
+			p.addError(fmt.Sprintf("expected enumerator name, got %s", p.curToken.Type))
+			p.nextToken()
+			continue
+		}
+
+		enumVal := cabs.EnumVal{Name: p.curToken.Literal}
+		p.nextToken()
+
+		// Optional value assignment
+		if p.curTokenIs(lexer.TokenAssign) {
+			p.nextToken() // consume '='
+			// Use assignment precedence to avoid consuming commas as part of expression
+			enumVal.Value = p.parseExprPrec(precAssign)
+		}
+
+		values = append(values, enumVal)
+
+		// Comma or closing brace
+		if p.curTokenIs(lexer.TokenComma) {
+			p.nextToken() // consume ','
+		} else if !p.curTokenIs(lexer.TokenRBrace) {
+			p.addError(fmt.Sprintf("expected ',' or '}' in enum, got %s", p.curToken.Type))
+			break
+		}
+	}
+
+	if !p.curTokenIs(lexer.TokenRBrace) {
+		p.addError(fmt.Sprintf("expected '}' at end of enum, got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume '}'
+
+	return cabs.EnumDef{Name: name, Values: values}
 }
 
 func (p *Parser) isTypeSpecifier() bool {
