@@ -216,12 +216,12 @@ func (ctx *genContext) generateEpilogue() []asm.Instruction {
 // newLabel generates a unique label
 func (ctx *genContext) newLabel() asm.Label {
 	ctx.labelCount++
-	return asm.Label(fmt.Sprintf(".L%d", ctx.labelCount))
+	return asm.Label(fmt.Sprintf(".L_%s_%d", ctx.fn.Name, ctx.labelCount))
 }
 
-// machLabelToAsm converts a Mach label to an assembly label
-func machLabelToAsm(lbl mach.Label) asm.Label {
-	return asm.Label(fmt.Sprintf(".L%d", lbl))
+// machLabelToAsm converts a Mach label to an assembly label with function-scoped name
+func (ctx *genContext) machLabelToAsm(lbl mach.Label) asm.Label {
+	return asm.Label(fmt.Sprintf(".L_%s_%d", ctx.fn.Name, lbl))
 }
 
 // translateInstruction translates a Mach instruction to assembly
@@ -246,9 +246,9 @@ func (ctx *genContext) translateInstruction(inst mach.Instruction) []asm.Instruc
 	case mach.Mbuiltin:
 		return ctx.translateBuiltin(i)
 	case mach.Mlabel:
-		return []asm.Instruction{asm.LabelDef{Name: machLabelToAsm(i.Lbl)}}
+		return []asm.Instruction{asm.LabelDef{Name: ctx.machLabelToAsm(i.Lbl)}}
 	case mach.Mgoto:
-		return []asm.Instruction{asm.B{Target: machLabelToAsm(i.Target)}}
+		return []asm.Instruction{asm.B{Target: ctx.machLabelToAsm(i.Target)}}
 	case mach.Mcond:
 		return ctx.translateCond(i)
 	case mach.Mjumptable:
@@ -716,7 +716,7 @@ func (ctx *genContext) translateCond(i mach.Mcond) []asm.Instruction {
 	// Generate compare instruction based on condition code type
 	cc := condCodeToAsmCond(i.Cond, i.Args)
 	return []asm.Instruction{
-		asm.Bcond{Cond: cc, Target: machLabelToAsm(i.IfSo)},
+		asm.Bcond{Cond: cc, Target: ctx.machLabelToAsm(i.IfSo)},
 	}
 }
 
@@ -744,7 +744,7 @@ func (ctx *genContext) translateJumptable(i mach.Mjumptable) []asm.Instruction {
 	for idx, target := range i.Targets {
 		result = append(result,
 			asm.CMPi{Rn: i.Arg, Imm: int64(idx), Is64: true},
-			asm.Bcond{Cond: asm.CondEQ, Target: machLabelToAsm(target)},
+			asm.Bcond{Cond: asm.CondEQ, Target: ctx.machLabelToAsm(target)},
 		)
 	}
 	return result

@@ -141,3 +141,19 @@ tests:
       - "main:"
     expect_unique:
       - "main:"  # should appear exactly once
+
+  - name: "unique labels across functions - known issue 4"
+    # Issue: labels must be function-scoped to avoid collisions
+    input: |
+      int foo(int x) { if (x) return 1; return 0; }
+      int bar(int x) { if (x) return 2; return 0; }
+    expect:
+      - ".global\tfoo"
+      - ".global\tbar"
+      - "foo:"
+      - "bar:"
+      - ".L_foo_"  # foo's labels should have foo prefix
+      - ".L_bar_"  # bar's labels should have bar prefix
+    expect_not:
+      - ".L1:"     # plain .L1 without function prefix should not exist
+      - ".L2:"     # plain .L2 without function prefix should not exist

@@ -473,9 +473,27 @@ func TestTranslateMove(t *testing.T) {
 }
 
 func TestMachLabelToAsm(t *testing.T) {
-	label := machLabelToAsm(mach.Label(5))
-	if label != ".L5" {
-		t.Errorf("Expected '.L5', got %q", label)
+	// Labels should be function-scoped to prevent collisions across functions
+	ctx := &genContext{
+		fn: &mach.Function{Name: "test_func"},
+	}
+	label := ctx.machLabelToAsm(mach.Label(5))
+	if label != ".L_test_func_5" {
+		t.Errorf("Expected '.L_test_func_5', got %q", label)
+	}
+
+	// Different function should produce different label
+	ctx2 := &genContext{
+		fn: &mach.Function{Name: "other_func"},
+	}
+	label2 := ctx2.machLabelToAsm(mach.Label(5))
+	if label2 != ".L_other_func_5" {
+		t.Errorf("Expected '.L_other_func_5', got %q", label2)
+	}
+
+	// Verify labels from different functions don't collide
+	if label == label2 {
+		t.Error("Labels from different functions should not be equal")
 	}
 }
 

@@ -30,6 +30,7 @@ type E2EAsmTestSpec struct {
 	Expect       []string `yaml:"expect"`        // Strings that must appear in output
 	ExpectOrder  []string `yaml:"expect_order"`  // Strings that must appear in this order
 	ExpectUnique []string `yaml:"expect_unique"` // Strings that must appear exactly once
+	ExpectNot    []string `yaml:"expect_not"`    // Strings that must NOT appear in output
 	Skip         string   `yaml:"skip,omitempty"`
 }
 
@@ -296,6 +297,13 @@ func TestE2EAsmYAML(t *testing.T) {
 				count := strings.Count(output, exp)
 				if count != 1 {
 					t.Errorf("expected %q to appear exactly once, found %d times\nGot:\n%s", exp, count, output)
+				}
+			}
+
+			// Check that strings do NOT appear
+			for _, exp := range tc.ExpectNot {
+				if strings.Contains(output, exp) {
+					t.Errorf("expected output NOT to contain %q\nGot:\n%s", exp, output)
 				}
 			}
 		})

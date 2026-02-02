@@ -157,9 +157,11 @@ The following literal handling is needed to compile programs with `#include <std
 
 The following issues prevent hello.c from running correctly after compilation:
 
-[ ] Asmgen: Make function labels unique across the program
-    - Each function uses `.L1` for labels, causing "symbol already defined" errors
-    - Need function-local or globally unique labels
+[x] Asmgen: Make function labels unique across the program
+    - Modified machLabelToAsm to include function name prefix: `.L_funcName_N`
+    - Labels are now function-scoped to prevent collisions
+    - Added e2e test case verifying unique labels across multiple functions
+    - Added expect_not test assertion support
 
 [ ] Asmgen: Emit string literal data in .rodata section  
     - String literals generate `.Lstr0` etc labels but no data section
