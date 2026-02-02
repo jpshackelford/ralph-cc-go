@@ -55,6 +55,12 @@ func (p *Printer) printFunDef(f FunDef) {
 		}
 		fmt.Fprintf(p.w, "%s %s", param.TypeSpec, param.Name)
 	}
+	if f.Variadic {
+		if len(f.Params) > 0 {
+			fmt.Fprint(p.w, ", ")
+		}
+		fmt.Fprint(p.w, "...")
+	}
 	fmt.Fprintln(p.w, ")")
 	p.printBlock(f.Body)
 }

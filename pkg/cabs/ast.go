@@ -238,6 +238,7 @@ type FunDef struct {
 	ReturnType string
 	Name       string
 	Params     []Param
+	Variadic   bool // true if function has ... parameter (variadic)
 	Body       *Block
 }
 

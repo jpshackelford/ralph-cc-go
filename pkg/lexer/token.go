@@ -100,6 +100,7 @@ const (
 	TokenComma     // ,
 	TokenDot       // .
 	TokenArrow     // ->
+	TokenEllipsis  // ...
 )
 
 var tokenNames = map[TokenType]string{
@@ -186,6 +187,7 @@ var tokenNames = map[TokenType]string{
 	TokenComma:         ",",
 	TokenDot:           ".",
 	TokenArrow:         "->",
+	TokenEllipsis:      "...",
 }
 
 func (t TokenType) String() string {

@@ -235,7 +235,7 @@ func (p *Parser) ParseDefinition() cabs.Definition {
 		return nil
 	}
 
-	params := p.parseParameterList()
+	params, variadic := p.parseParameterList()
 
 	if !p.curTokenIs(lexer.TokenRParen) {
 		p.addError(fmt.Sprintf("expected ')' after parameters, got %s", p.curToken.Type))
@@ -254,6 +254,7 @@ func (p *Parser) ParseDefinition() cabs.Definition {
 		ReturnType: returnType,
 		Name:       name,
 		Params:     params,
+		Variadic:   variadic,
 		Body:       body,
 	}
 }
@@ -525,16 +526,18 @@ func (p *Parser) parseEnumDef() cabs.Definition {
 }
 
 // parseParameterList parses function parameters: (type name, type name, ...)
-func (p *Parser) parseParameterList() []cabs.Param {
+// Returns the parameter list and whether the function is variadic
+func (p *Parser) parseParameterList() ([]cabs.Param, bool) {
 	var params []cabs.Param
+	variadic := false
 
 	// Empty parameter list or void
 	if p.curTokenIs(lexer.TokenRParen) {
-		return params
+		return params, false
 	}
 	if p.curTokenIs(lexer.TokenVoid) && p.peekTokenIs(lexer.TokenRParen) {
 		p.nextToken() // consume 'void'
-		return params
+		return params, false
 	}
 
 	// Parse first parameter
@@ -546,13 +549,19 @@ func (p *Parser) parseParameterList() []cabs.Param {
 	// Parse remaining parameters
 	for p.curTokenIs(lexer.TokenComma) {
 		p.nextToken() // consume ','
+		// Check for variadic '...'
+		if p.curTokenIs(lexer.TokenEllipsis) {
+			variadic = true
+			p.nextToken() // consume '...'
+			break
+		}
 		param := p.parseParameter()
 		if param != nil {
 			params = append(params, *param)
 		}
 	}
 
-	return params
+	return params, variadic
 }
 
 // parseParameter parses a single function parameter: type name

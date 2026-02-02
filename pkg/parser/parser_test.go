@@ -2933,3 +2933,62 @@ func TestFunctionPointerInStructField(t *testing.T) {
 		})
 	}
 }
+
+func TestVariadicFunctionDeclaration(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		numParams  int
+		isVariadic bool
+	}{
+		{
+			"printf-like variadic function",
+			"int printf(const char *fmt, ...) { return 0; }",
+			1,
+			true,
+		},
+		{
+			"variadic with multiple params",
+			"int foo(int a, int b, ...) { return 0; }",
+			2,
+			true,
+		},
+		{
+			"non-variadic function",
+			"int bar(int x, int y) { return x + y; }",
+			2,
+			false,
+		},
+		{
+			"variadic with single param",
+			"void log(const char *msg, ...) {}",
+			1,
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef, ok := def.(cabs.FunDef)
+			if !ok {
+				t.Fatalf("expected FunDef, got %T", def)
+			}
+
+			if len(funDef.Params) != tt.numParams {
+				t.Errorf("expected %d params, got %d", tt.numParams, len(funDef.Params))
+			}
+
+			if funDef.Variadic != tt.isVariadic {
+				t.Errorf("expected Variadic=%v, got %v", tt.isVariadic, funDef.Variadic)
+			}
+		})
+	}
+}

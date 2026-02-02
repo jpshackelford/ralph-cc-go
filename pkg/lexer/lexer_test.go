@@ -210,3 +210,72 @@ main()`
 		}
 	}
 }
+
+func TestEllipsis(t *testing.T) {
+	input := `int printf(const char *fmt, ...)`
+
+	tests := []struct {
+		expectedType    TokenType
+		expectedLiteral string
+	}{
+		{TokenInt_, "int"},
+		{TokenIdent, "printf"},
+		{TokenLParen, "("},
+		{TokenConst, "const"},
+		{TokenChar, "char"},
+		{TokenStar, "*"},
+		{TokenIdent, "fmt"},
+		{TokenComma, ","},
+		{TokenEllipsis, "..."},
+		{TokenRParen, ")"},
+		{TokenEOF, ""},
+	}
+
+	l := New(input)
+
+	for i, tt := range tests {
+		tok := l.NextToken()
+
+		if tok.Type != tt.expectedType {
+			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q",
+				i, tt.expectedType, tok.Type)
+		}
+
+		if tok.Literal != tt.expectedLiteral {
+			t.Fatalf("tests[%d] - literal wrong. expected=%q, got=%q",
+				i, tt.expectedLiteral, tok.Literal)
+		}
+	}
+}
+
+func TestEllipsisVsDot(t *testing.T) {
+	// Test that single dots are still recognized correctly alongside ellipsis
+	input := `s.x ...`
+
+	tests := []struct {
+		expectedType    TokenType
+		expectedLiteral string
+	}{
+		{TokenIdent, "s"},
+		{TokenDot, "."},
+		{TokenIdent, "x"},
+		{TokenEllipsis, "..."},
+		{TokenEOF, ""},
+	}
+
+	l := New(input)
+
+	for i, tt := range tests {
+		tok := l.NextToken()
+
+		if tok.Type != tt.expectedType {
+			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q",
+				i, tt.expectedType, tok.Type)
+		}
+
+		if tok.Literal != tt.expectedLiteral {
+			t.Fatalf("tests[%d] - literal wrong. expected=%q, got=%q",
+				i, tt.expectedLiteral, tok.Literal)
+		}
+	}
+}

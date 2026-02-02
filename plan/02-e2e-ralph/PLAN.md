@@ -41,9 +41,13 @@ The following parser limitations prevent compiling programs with `#include <stdi
     - Handles spaces in declaration: `int (* _close)(void *)` works correctly
     - Added comprehensive unit tests for function pointer struct fields
 
-[ ] Parser: Support variadic function declarations
-    - `printf(const char * restrict, ...)` needs `...` parameter support
-    - May already be partially supported but masked by restrict errors
+[x] Parser: Support variadic function declarations
+    - Added `TokenEllipsis` token type for `...` to lexer
+    - Added `Variadic` field to `FunDef` struct in cabs
+    - Updated `parseParameterList` to recognize `...` as final parameter
+    - Updated printer to output variadic ellipsis
+    - Added tests for lexer (TestEllipsis, TestEllipsisVsDot)
+    - Added tests for parser (TestVariadicFunctionDeclaration)
 
 [ ] Parser: Support __attribute__ in function declarations
     - `__attribute__((__format__ (__printf__, 1, 2)))` on printf

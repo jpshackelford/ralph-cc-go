@@ -222,7 +222,14 @@ func (l *Lexer) NextToken() Token {
 	case ',':
 		tok = l.newToken(TokenComma, l.ch)
 	case '.':
-		tok = l.newToken(TokenDot, l.ch)
+		if l.peekChar() == '.' && l.peekCharN(2) == '.' {
+			tok.Type = TokenEllipsis
+			tok.Literal = "..."
+			l.readChar()
+			l.readChar()
+		} else {
+			tok = l.newToken(TokenDot, l.ch)
+		}
 	case '"':
 		tok.Type = TokenString
 		tok.Literal = l.readString()
