@@ -2851,3 +2851,85 @@ func TestStructDefinitionVsReturnType(t *testing.T) {
 		})
 	}
 }
+
+func TestFunctionPointerInStructField(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		fieldName  string
+		fieldType  string
+		numFields  int
+	}{
+		{
+			"simple function pointer field",
+			"struct S { int (*f)(void); };",
+			"f",
+			"int(*)(void)",
+			1,
+		},
+		{
+			"function pointer with params",
+			"struct S { int (*_read)(void *, char *, int); };",
+			"_read",
+			"int(*)(void*, char*, int)",
+			1,
+		},
+		{
+			"function pointer returning void",
+			"struct S { void (*callback)(int); };",
+			"callback",
+			"void(*)(int)",
+			1,
+		},
+		{
+			"function pointer with regular fields",
+			"struct FILE { int x; int (*_read)(void *, char *, int); int y; };",
+			"_read",
+			"int(*)(void*, char*, int)",
+			3,
+		},
+		{
+			"function pointer returning pointer",
+			"struct S { char *(*getstr)(void); };",
+			"getstr",
+			"char*(*)(void)",
+			1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			structDef, ok := def.(cabs.StructDef)
+			if !ok {
+				t.Fatalf("expected StructDef, got %T", def)
+			}
+
+			if len(structDef.Fields) != tt.numFields {
+				t.Fatalf("expected %d fields, got %d", tt.numFields, len(structDef.Fields))
+			}
+
+			// Find the function pointer field
+			var found bool
+			for _, field := range structDef.Fields {
+				if field.Name == tt.fieldName {
+					found = true
+					if field.TypeSpec != tt.fieldType {
+						t.Errorf("expected field type %q, got %q", tt.fieldType, field.TypeSpec)
+					}
+					break
+				}
+			}
+			if !found {
+				t.Errorf("field %q not found in struct", tt.fieldName)
+			}
+		})
+	}
+}

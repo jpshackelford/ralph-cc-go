@@ -32,10 +32,14 @@ The following parser limitations prevent compiling programs with `#include <stdi
     - Updated all type parsing locations: function return types, parameters, typedefs, struct fields, declarations, for-loop declarations
     - Added test cases in testdata/parse.yaml for compound type specifiers
 
-[ ] Parser: Support function pointers in struct fields
+[x] Parser: Support function pointers in struct fields
     - macOS FILE struct contains: `int (*_read)(void *, char *, int);`
-    - Fails with "expected type specifier in struct field"
-    - ~13 struct field errors
+    - Added `parseFunctionPointerField()` to handle `type (*name)(params)` syntax
+    - Detects pattern after type specifier: `(` followed by `*`
+    - Parses return type, function pointer name, and parameter types
+    - Generates type string like `int(*)(void*, char*, int)`
+    - Handles spaces in declaration: `int (* _close)(void *)` works correctly
+    - Added comprehensive unit tests for function pointer struct fields
 
 [ ] Parser: Support variadic function declarations
     - `printf(const char * restrict, ...)` needs `...` parameter support

@@ -317,6 +317,15 @@ func (p *Parser) parseStructBody(name string, isUnion bool) cabs.Definition {
 			}
 		}
 
+		// Check for function pointer field: type (*name)(params)
+		if p.curTokenIs(lexer.TokenLParen) && p.peekTokenIs(lexer.TokenStar) {
+			field := p.parseFunctionPointerField(typeSpec)
+			if field != nil {
+				fields = append(fields, *field)
+			}
+			continue
+		}
+
 		// Field name
 		if !p.curTokenIs(lexer.TokenIdent) {
 			p.addError(fmt.Sprintf("expected field name, got %s", p.curToken.Type))
@@ -360,6 +369,98 @@ func (p *Parser) parseStructBody(name string, isUnion bool) cabs.Definition {
 		return cabs.UnionDef{Name: name, Fields: fields}
 	}
 	return cabs.StructDef{Name: name, Fields: fields}
+}
+
+// parseFunctionPointerField parses a function pointer field: returnType (*name)(params)
+// It expects to be positioned at '(' with peek at '*'
+func (p *Parser) parseFunctionPointerField(returnType string) *cabs.StructField {
+	p.nextToken() // consume '('
+	p.nextToken() // consume '*'
+
+	// Field name
+	if !p.curTokenIs(lexer.TokenIdent) {
+		p.addError(fmt.Sprintf("expected function pointer field name, got %s", p.curToken.Type))
+		return nil
+	}
+	fieldName := p.curToken.Literal
+	p.nextToken()
+
+	// Expect ')'
+	if !p.expect(lexer.TokenRParen) {
+		return nil
+	}
+
+	// Expect '(' for parameter list
+	if !p.curTokenIs(lexer.TokenLParen) {
+		p.addError(fmt.Sprintf("expected '(' for function pointer parameters, got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume '('
+
+	// Parse parameter types for the function pointer type string
+	var paramTypes []string
+	for !p.curTokenIs(lexer.TokenRParen) && !p.curTokenIs(lexer.TokenEOF) {
+		// Skip type qualifiers
+		for p.isTypeQualifier() {
+			p.nextToken()
+		}
+
+		if p.curTokenIs(lexer.TokenRParen) {
+			break
+		}
+
+		// Parse type specifier
+		paramType := p.parseCompoundTypeSpecifier()
+
+		// Handle pointer types
+		for p.curTokenIs(lexer.TokenStar) {
+			paramType = paramType + "*"
+			p.nextToken()
+			// Skip type qualifiers after pointer
+			for p.isTypeQualifier() {
+				p.nextToken()
+			}
+		}
+
+		// Skip parameter name if present
+		if p.curTokenIs(lexer.TokenIdent) {
+			p.nextToken()
+		}
+
+		paramTypes = append(paramTypes, paramType)
+
+		// Check for comma
+		if p.curTokenIs(lexer.TokenComma) {
+			p.nextToken()
+		}
+	}
+
+	// Expect ')'
+	if !p.expect(lexer.TokenRParen) {
+		return nil
+	}
+
+	// Expect ';'
+	if !p.expect(lexer.TokenSemicolon) {
+		return nil
+	}
+
+	// Build the function pointer type string: returnType(*)(paramTypes)
+	typeSpec := returnType + "(*)(" + joinParamTypes(paramTypes) + ")"
+
+	return &cabs.StructField{TypeSpec: typeSpec, Name: fieldName}
+}
+
+// joinParamTypes joins parameter types with ", "
+func joinParamTypes(types []string) string {
+	if len(types) == 0 {
+		return ""
+	}
+	result := types[0]
+	for i := 1; i < len(types); i++ {
+		result += ", " + types[i]
+	}
+	return result
 }
 
 // parseEnumDef parses an enum definition
