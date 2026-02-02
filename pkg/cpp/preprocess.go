@@ -43,9 +43,12 @@ func NewPreprocessor(opts PreprocessorOptions) *Preprocessor {
 		resolver.AddSystemPath(p)
 	}
 	
+	conditional := NewConditionalProcessor(macros)
+	conditional.SetIncludeResolver(resolver)
+	
 	return &Preprocessor{
 		macros:        macros,
-		conditional:   NewConditionalProcessor(macros),
+		conditional:   conditional,
 		expander:      NewExpander(macros),
 		resolver:      resolver,
 		opts:          opts,
@@ -71,22 +74,41 @@ func (p *Preprocessor) PreprocessFile(filename string) (string, error) {
 	}
 	defer p.resolver.PopFile()
 	
-	return p.preprocessContent(string(content), absPath)
+	// Top-level file - check balance after processing
+	return p.preprocessContentTopLevel(string(content), absPath)
 }
 
 // PreprocessString preprocesses a string with a given filename for error messages.
 func (p *Preprocessor) PreprocessString(source, filename string) (string, error) {
-	return p.preprocessContent(source, filename)
+	// Treat as top-level
+	return p.preprocessContentTopLevel(source, filename)
+}
+
+// preprocessContentTopLevel preprocesses content and checks for balanced conditionals.
+// Used for the top-level file where we expect all conditionals to be closed.
+func (p *Preprocessor) preprocessContentTopLevel(source, filename string) (string, error) {
+	result, err := p.preprocessContent(source, filename, true)
+	if err != nil {
+		return "", err
+	}
+	
+	// Check for unbalanced conditionals (only at top level)
+	if err := p.conditional.CheckBalanced(); err != nil {
+		return "", fmt.Errorf("%s: %w", filename, err)
+	}
+	
+	return result, nil
 }
 
 // preprocessContent is the main preprocessing loop.
-func (p *Preprocessor) preprocessContent(source, filename string) (string, error) {
+// isTopLevel indicates whether this is the top-level file (for line marker output).
+func (p *Preprocessor) preprocessContent(source, filename string, isTopLevel bool) (string, error) {
 	lex := NewLexer(source, filename)
 	var output strings.Builder
 	var lineTokens []Token
 	currentLine := 1
 	
-	if p.opts.LineMarkers {
+	if p.opts.LineMarkers && isTopLevel {
 		output.WriteString(fmt.Sprintf("# 1 \"%s\"\n", filename))
 	}
 	
@@ -118,11 +140,6 @@ func (p *Preprocessor) preprocessContent(source, filename string) (string, error
 		}
 		
 		lineTokens = append(lineTokens, tok)
-	}
-	
-	// Check for unbalanced conditionals
-	if err := p.conditional.CheckBalanced(); err != nil {
-		return "", fmt.Errorf("%s: %w", filename, err)
 	}
 	
 	return output.String(), nil
@@ -321,7 +338,7 @@ func (p *Preprocessor) processInclude(dir *Directive, currentFile string) (strin
 	oldCurrentFile := p.resolver.CurrentDir
 	p.resolver.SetCurrentFile(includePath)
 	
-	result, err := p.preprocessContent(string(content), includePath)
+	result, err := p.preprocessContent(string(content), includePath, false)
 	if err != nil {
 		return "", fmt.Errorf("in %s: %w", includePath, err)
 	}

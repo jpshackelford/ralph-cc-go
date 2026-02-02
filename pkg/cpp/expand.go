@@ -418,12 +418,21 @@ func (e *Expander) handleTokenPasting(tokens []Token) ([]Token, error) {
 				return nil, fmt.Errorf("## cannot appear at end of replacement list")
 			}
 
+			// Find the left token, skipping any trailing whitespace in result
+			leftIdx := len(result) - 1
+			for leftIdx >= 0 && result[leftIdx].Type == PP_WHITESPACE {
+				leftIdx--
+			}
+			if leftIdx < 0 {
+				return nil, fmt.Errorf("## cannot appear at start of replacement list")
+			}
+
 			// Get the tokens to paste
-			leftTok := result[len(result)-1]
+			leftTok := result[leftIdx]
 			rightTok := tokens[nextIdx]
 
-			// Remove left token from result (will be replaced with pasted)
-			result = result[:len(result)-1]
+			// Remove left token and any following whitespace from result
+			result = result[:leftIdx]
 
 			// Handle placeholder tokens (empty)
 			if leftTok.Type == PP_PLACEHOLDER {

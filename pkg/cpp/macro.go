@@ -105,6 +105,365 @@ func (mt *MacroTable) initBuiltins() {
 			return []Token{{Type: PP_NUMBER, Text: "1", Loc: loc}}
 		},
 	}
+
+	// GCC compatibility macros - pretend to be GCC 4.2 (widely compatible)
+	mt.macros["__GNUC__"] = &Macro{
+		Name: "__GNUC__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "4", Loc: loc}}
+		},
+	}
+	mt.macros["__GNUC_MINOR__"] = &Macro{
+		Name: "__GNUC_MINOR__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "2", Loc: loc}}
+		},
+	}
+	mt.macros["__GNUC_PATCHLEVEL__"] = &Macro{
+		Name: "__GNUC_PATCHLEVEL__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "1", Loc: loc}}
+		},
+	}
+	mt.macros["__GNUC_STDC_INLINE__"] = &Macro{
+		Name: "__GNUC_STDC_INLINE__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "1", Loc: loc}}
+		},
+	}
+
+	// Type size macros for ARM64
+	mt.macros["__SIZEOF_INT__"] = &Macro{
+		Name: "__SIZEOF_INT__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "4", Loc: loc}}
+		},
+	}
+	mt.macros["__SIZEOF_LONG__"] = &Macro{
+		Name: "__SIZEOF_LONG__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "8", Loc: loc}}
+		},
+	}
+	mt.macros["__SIZEOF_LONG_LONG__"] = &Macro{
+		Name: "__SIZEOF_LONG_LONG__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "8", Loc: loc}}
+		},
+	}
+	mt.macros["__SIZEOF_SHORT__"] = &Macro{
+		Name: "__SIZEOF_SHORT__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "2", Loc: loc}}
+		},
+	}
+	mt.macros["__SIZEOF_POINTER__"] = &Macro{
+		Name: "__SIZEOF_POINTER__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "8", Loc: loc}}
+		},
+	}
+	mt.macros["__SIZEOF_SIZE_T__"] = &Macro{
+		Name: "__SIZEOF_SIZE_T__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "8", Loc: loc}}
+		},
+	}
+	mt.macros["__SIZEOF_PTRDIFF_T__"] = &Macro{
+		Name: "__SIZEOF_PTRDIFF_T__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "8", Loc: loc}}
+		},
+	}
+	mt.macros["__SIZEOF_FLOAT__"] = &Macro{
+		Name: "__SIZEOF_FLOAT__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "4", Loc: loc}}
+		},
+	}
+	mt.macros["__SIZEOF_DOUBLE__"] = &Macro{
+		Name: "__SIZEOF_DOUBLE__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "8", Loc: loc}}
+		},
+	}
+
+	// Byte order macros for ARM64 (little endian)
+	mt.macros["__BYTE_ORDER__"] = &Macro{
+		Name: "__BYTE_ORDER__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "1234", Loc: loc}} // Little endian
+		},
+	}
+	mt.macros["__ORDER_LITTLE_ENDIAN__"] = &Macro{
+		Name: "__ORDER_LITTLE_ENDIAN__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "1234", Loc: loc}}
+		},
+	}
+	mt.macros["__ORDER_BIG_ENDIAN__"] = &Macro{
+		Name: "__ORDER_BIG_ENDIAN__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "4321", Loc: loc}}
+		},
+	}
+	mt.macros["__LITTLE_ENDIAN__"] = &Macro{
+		Name: "__LITTLE_ENDIAN__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "1", Loc: loc}}
+		},
+	}
+
+	// Platform macros for ARM64 macOS
+	mt.macros["__LP64__"] = &Macro{
+		Name: "__LP64__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "1", Loc: loc}}
+		},
+	}
+	mt.macros["__aarch64__"] = &Macro{
+		Name: "__aarch64__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "1", Loc: loc}}
+		},
+	}
+	mt.macros["__arm64__"] = &Macro{
+		Name: "__arm64__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "1", Loc: loc}}
+		},
+	}
+	mt.macros["__APPLE__"] = &Macro{
+		Name: "__APPLE__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "1", Loc: loc}}
+		},
+	}
+	mt.macros["__MACH__"] = &Macro{
+		Name: "__MACH__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "1", Loc: loc}}
+		},
+	}
+
+	// Type limits macros
+	mt.macros["__CHAR_BIT__"] = &Macro{
+		Name: "__CHAR_BIT__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "8", Loc: loc}}
+		},
+	}
+	mt.macros["__SCHAR_MAX__"] = &Macro{
+		Name: "__SCHAR_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "127", Loc: loc}}
+		},
+	}
+	mt.macros["__SHRT_MAX__"] = &Macro{
+		Name: "__SHRT_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "32767", Loc: loc}}
+		},
+	}
+	mt.macros["__INT_MAX__"] = &Macro{
+		Name: "__INT_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "2147483647", Loc: loc}}
+		},
+	}
+	mt.macros["__LONG_MAX__"] = &Macro{
+		Name: "__LONG_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "9223372036854775807L", Loc: loc}}
+		},
+	}
+	mt.macros["__LONG_LONG_MAX__"] = &Macro{
+		Name: "__LONG_LONG_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "9223372036854775807LL", Loc: loc}}
+		},
+	}
+	mt.macros["__WCHAR_MAX__"] = &Macro{
+		Name: "__WCHAR_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "2147483647", Loc: loc}}
+		},
+	}
+	mt.macros["__WCHAR_WIDTH__"] = &Macro{
+		Name: "__WCHAR_WIDTH__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "32", Loc: loc}}
+		},
+	}
+	mt.macros["__WINT_MAX__"] = &Macro{
+		Name: "__WINT_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "2147483647", Loc: loc}}
+		},
+	}
+	mt.macros["__WINT_WIDTH__"] = &Macro{
+		Name: "__WINT_WIDTH__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "32", Loc: loc}}
+		},
+	}
+	mt.macros["__INTMAX_MAX__"] = &Macro{
+		Name: "__INTMAX_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "9223372036854775807L", Loc: loc}}
+		},
+	}
+	mt.macros["__INTMAX_WIDTH__"] = &Macro{
+		Name: "__INTMAX_WIDTH__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "64", Loc: loc}}
+		},
+	}
+	mt.macros["__SIZE_MAX__"] = &Macro{
+		Name: "__SIZE_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "18446744073709551615UL", Loc: loc}}
+		},
+	}
+	mt.macros["__SIZE_WIDTH__"] = &Macro{
+		Name: "__SIZE_WIDTH__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "64", Loc: loc}}
+		},
+	}
+	mt.macros["__PTRDIFF_MAX__"] = &Macro{
+		Name: "__PTRDIFF_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "9223372036854775807L", Loc: loc}}
+		},
+	}
+	mt.macros["__PTRDIFF_WIDTH__"] = &Macro{
+		Name: "__PTRDIFF_WIDTH__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "64", Loc: loc}}
+		},
+	}
+	mt.macros["__INTPTR_MAX__"] = &Macro{
+		Name: "__INTPTR_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "9223372036854775807L", Loc: loc}}
+		},
+	}
+	mt.macros["__INTPTR_WIDTH__"] = &Macro{
+		Name: "__INTPTR_WIDTH__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "64", Loc: loc}}
+		},
+	}
+	mt.macros["__UINTPTR_MAX__"] = &Macro{
+		Name: "__UINTPTR_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "18446744073709551615UL", Loc: loc}}
+		},
+	}
+
+	// INT8/16/32/64 types
+	mt.macros["__INT8_MAX__"] = &Macro{
+		Name: "__INT8_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "127", Loc: loc}}
+		},
+	}
+	mt.macros["__INT16_MAX__"] = &Macro{
+		Name: "__INT16_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "32767", Loc: loc}}
+		},
+	}
+	mt.macros["__INT32_MAX__"] = &Macro{
+		Name: "__INT32_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "2147483647", Loc: loc}}
+		},
+	}
+	mt.macros["__INT64_MAX__"] = &Macro{
+		Name: "__INT64_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "9223372036854775807LL", Loc: loc}}
+		},
+	}
+	mt.macros["__UINT8_MAX__"] = &Macro{
+		Name: "__UINT8_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "255", Loc: loc}}
+		},
+	}
+	mt.macros["__UINT16_MAX__"] = &Macro{
+		Name: "__UINT16_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "65535", Loc: loc}}
+		},
+	}
+	mt.macros["__UINT32_MAX__"] = &Macro{
+		Name: "__UINT32_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "4294967295U", Loc: loc}}
+		},
+	}
+	mt.macros["__UINT64_MAX__"] = &Macro{
+		Name: "__UINT64_MAX__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "18446744073709551615ULL", Loc: loc}}
+		},
+	}
+
+	// Note: We don't define __INTN_MAX, __INTN_MIN, __UINTN_MAX, __UINTN_C, __INTN_C
+	// because they are defined differently by different system headers (clang vs gcc).
+	// The headers will define them when needed.
 }
 
 // Define adds or replaces a macro in the table.

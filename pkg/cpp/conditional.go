@@ -18,6 +18,7 @@ type ConditionState struct {
 type ConditionalProcessor struct {
 	macros   *MacroTable
 	expander *Expander
+	resolver *IncludeResolver // For __has_include
 	stack    []ConditionState // stack of nested conditions
 }
 
@@ -28,6 +29,11 @@ func NewConditionalProcessor(macros *MacroTable) *ConditionalProcessor {
 		expander: NewExpander(macros),
 		stack:    []ConditionState{},
 	}
+}
+
+// SetIncludeResolver sets the include resolver for __has_include support.
+func (cp *ConditionalProcessor) SetIncludeResolver(resolver *IncludeResolver) {
+	cp.resolver = resolver
 }
 
 // IsActive returns true if the current location is active (should be included).
@@ -199,7 +205,7 @@ func (cp *ConditionalProcessor) evaluateCondition(tokens []Token) (bool, error) 
 	return result != 0, nil
 }
 
-// processDefinedAndExpand handles the 'defined' operator and expands macros.
+// processDefinedAndExpand handles the 'defined' operator, __has_* operators, and expands macros.
 func (cp *ConditionalProcessor) processDefinedAndExpand(tokens []Token) ([]Token, error) {
 	var result []Token
 	i := 0
@@ -262,6 +268,62 @@ func (cp *ConditionalProcessor) processDefinedAndExpand(tokens []Token) ([]Token
 			continue
 		}
 
+		// Handle __has_include
+		if tok.Type == PP_IDENTIFIER && tok.Text == "__has_include" {
+			newI, value := cp.processHasInclude(tokens, i)
+			result = append(result, Token{Type: PP_NUMBER, Text: value, Loc: tok.Loc})
+			i = newI
+			continue
+		}
+
+		// Handle __has_include_next (always returns 0 - we don't support include_next)
+		if tok.Type == PP_IDENTIFIER && tok.Text == "__has_include_next" {
+			newI, _ := cp.processHasInclude(tokens, i)  // Parse but ignore result
+			result = append(result, Token{Type: PP_NUMBER, Text: "0", Loc: tok.Loc})
+			i = newI
+			continue
+		}
+
+		// Handle __has_feature, __has_extension
+		if tok.Type == PP_IDENTIFIER && (tok.Text == "__has_feature" || tok.Text == "__has_extension") {
+			newI, value := cp.processHasFeature(tokens, i)
+			result = append(result, Token{Type: PP_NUMBER, Text: value, Loc: tok.Loc})
+			i = newI
+			continue
+		}
+
+		// Handle __has_attribute
+		if tok.Type == PP_IDENTIFIER && tok.Text == "__has_attribute" {
+			newI, value := cp.processHasAttribute(tokens, i)
+			result = append(result, Token{Type: PP_NUMBER, Text: value, Loc: tok.Loc})
+			i = newI
+			continue
+		}
+
+		// Handle __has_builtin
+		if tok.Type == PP_IDENTIFIER && tok.Text == "__has_builtin" {
+			newI, value := cp.processHasBuiltin(tokens, i)
+			result = append(result, Token{Type: PP_NUMBER, Text: value, Loc: tok.Loc})
+			i = newI
+			continue
+		}
+
+		// Handle __has_cpp_attribute (for C++ compat in headers)
+		if tok.Type == PP_IDENTIFIER && tok.Text == "__has_cpp_attribute" {
+			newI, value := cp.processHasCppAttribute(tokens, i)
+			result = append(result, Token{Type: PP_NUMBER, Text: value, Loc: tok.Loc})
+			i = newI
+			continue
+		}
+
+		// Handle __has_warning
+		if tok.Type == PP_IDENTIFIER && tok.Text == "__has_warning" {
+			newI, value := cp.processHasWarning(tokens, i)
+			result = append(result, Token{Type: PP_NUMBER, Text: value, Loc: tok.Loc})
+			i = newI
+			continue
+		}
+
 		result = append(result, tok)
 		i++
 	}
@@ -283,6 +345,346 @@ func (cp *ConditionalProcessor) processDefinedAndExpand(tokens []Token) ([]Token
 	}
 
 	return final, nil
+}
+
+// processHasInclude handles __has_include(<header>) or __has_include("header")
+func (cp *ConditionalProcessor) processHasInclude(tokens []Token, startIdx int) (int, string) {
+	i := startIdx + 1 // skip __has_include
+
+	// Skip whitespace
+	for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+		i++
+	}
+
+	if i >= len(tokens) || tokens[i].Type != PP_PUNCTUATOR || tokens[i].Text != "(" {
+		return i, "0"
+	}
+	i++ // skip (
+
+	// Skip whitespace
+	for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+		i++
+	}
+
+	// Collect the header name
+	var headerName string
+	if i < len(tokens) {
+		if tokens[i].Type == PP_STRING {
+			// "header" form
+			headerName = tokens[i].Text
+			i++
+		} else if tokens[i].Type == PP_PUNCTUATOR && tokens[i].Text == "<" {
+			// <header> form - collect until >
+			headerName = "<"
+			i++
+			for i < len(tokens) {
+				if tokens[i].Type == PP_PUNCTUATOR && tokens[i].Text == ">" {
+					headerName += ">"
+					i++
+					break
+				}
+				headerName += tokens[i].Text
+				i++
+			}
+		}
+	}
+
+	// Skip to closing )
+	for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+		i++
+	}
+	if i < len(tokens) && tokens[i].Type == PP_PUNCTUATOR && tokens[i].Text == ")" {
+		i++
+	}
+
+	// Check if file exists
+	if cp.resolver != nil && headerName != "" {
+		var fileName string
+		var kind IncludeKind
+		if strings.HasPrefix(headerName, "<") && strings.HasSuffix(headerName, ">") {
+			fileName = headerName[1 : len(headerName)-1]
+			kind = IncludeAngled
+		} else if strings.HasPrefix(headerName, "\"") && strings.HasSuffix(headerName, "\"") {
+			fileName = headerName[1 : len(headerName)-1]
+			kind = IncludeQuoted
+		}
+
+		if fileName != "" {
+			_, err := cp.resolver.Resolve(fileName, kind)
+			if err == nil {
+				return i, "1"
+			}
+		}
+	}
+
+	return i, "0"
+}
+
+// processHasFeature handles __has_feature(x) - we support very few features
+func (cp *ConditionalProcessor) processHasFeature(tokens []Token, startIdx int) (int, string) {
+	i := startIdx + 1 // skip __has_feature
+
+	// Skip whitespace
+	for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+		i++
+	}
+
+	if i >= len(tokens) || tokens[i].Type != PP_PUNCTUATOR || tokens[i].Text != "(" {
+		return i, "0"
+	}
+	i++ // skip (
+
+	// Skip whitespace
+	for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+		i++
+	}
+
+	var featureName string
+	if i < len(tokens) && tokens[i].Type == PP_IDENTIFIER {
+		featureName = tokens[i].Text
+		i++
+	}
+
+	// Skip to closing )
+	for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+		i++
+	}
+	if i < len(tokens) && tokens[i].Type == PP_PUNCTUATOR && tokens[i].Text == ")" {
+		i++
+	}
+
+	// Check for supported features (minimal set for system header compatibility)
+	supported := map[string]bool{
+		"c_static_assert":       true,
+		"c_generic_selections":  true,
+		"c_alignas":             true,
+		"c_alignof":             true,
+		"c_thread_local":        false, // We don't support this
+		"c_atomic":              false,
+		"objc_arc":              false,
+		"objc_arc_weak":         false,
+		"objc_instancetype":     false,
+		"objc_default_synthesize_properties": false,
+		"nullability":           false,
+		"bounds_safety":         false,
+		"attribute_availability_swift": false,
+		"attribute_availability_with_message": false,
+		"ptrauth_calls":         false,
+		"ptrauth_returns":       false,
+		"cxx_exceptions":        false,
+		"cxx_rtti":              false,
+	}
+
+	if val, ok := supported[featureName]; ok && val {
+		return i, "1"
+	}
+	return i, "0"
+}
+
+// processHasAttribute handles __has_attribute(x)
+func (cp *ConditionalProcessor) processHasAttribute(tokens []Token, startIdx int) (int, string) {
+	i := startIdx + 1 // skip __has_attribute
+
+	// Skip whitespace
+	for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+		i++
+	}
+
+	if i >= len(tokens) || tokens[i].Type != PP_PUNCTUATOR || tokens[i].Text != "(" {
+		return i, "0"
+	}
+	i++ // skip (
+
+	// Skip whitespace
+	for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+		i++
+	}
+
+	var attrName string
+	if i < len(tokens) && tokens[i].Type == PP_IDENTIFIER {
+		attrName = tokens[i].Text
+		i++
+	}
+
+	// Skip to closing )
+	for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+		i++
+	}
+	if i < len(tokens) && tokens[i].Type == PP_PUNCTUATOR && tokens[i].Text == ")" {
+		i++
+	}
+
+	// Common GCC attributes we can claim to support (even if we ignore them)
+	supported := map[string]bool{
+		"aligned":                true,
+		"always_inline":          true,
+		"const":                  true,
+		"deprecated":             true,
+		"format":                 true,
+		"malloc":                 true,
+		"noinline":               true,
+		"noreturn":               true,
+		"nothrow":                true,
+		"packed":                 true,
+		"pure":                   true,
+		"unused":                 true,
+		"visibility":             true,
+		"warn_unused_result":     true,
+		"weak":                   true,
+		"constructor":            true,
+		"destructor":             true,
+		"nonnull":                true,
+		"returns_nonnull":        true,
+		"sentinel":               true,
+		"format_arg":             true,
+		"section":                true,
+		"used":                   true,
+		"cold":                   false, // Not widely available in GCC 4.2
+		"hot":                    false,
+		"unavailable":            false,
+		"disable_tail_calls":     false,
+		"not_tail_called":        false,
+		"objc_root_class":        false,
+		"ns_returns_retained":    false,
+		"ns_consumed":            false,
+		"alloc_size":             false,
+		"alloc_align":            false,
+		"enum_extensibility":     false,
+		"flag_enum":              false,
+		"swift_name":             false,
+		"swift_attr":             false,
+		"swift_private":          false,
+		"unsafe_buffer_usage":    false,
+	}
+
+	if val, ok := supported[attrName]; ok && val {
+		return i, "1"
+	}
+	return i, "0"
+}
+
+// processHasBuiltin handles __has_builtin(x)
+func (cp *ConditionalProcessor) processHasBuiltin(tokens []Token, startIdx int) (int, string) {
+	i := startIdx + 1 // skip __has_builtin
+
+	// Skip whitespace
+	for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+		i++
+	}
+
+	if i >= len(tokens) || tokens[i].Type != PP_PUNCTUATOR || tokens[i].Text != "(" {
+		return i, "0"
+	}
+	i++ // skip (
+
+	// Skip whitespace
+	for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+		i++
+	}
+
+	var builtinName string
+	if i < len(tokens) && tokens[i].Type == PP_IDENTIFIER {
+		builtinName = tokens[i].Text
+		i++
+	}
+
+	// Skip to closing )
+	for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+		i++
+	}
+	if i < len(tokens) && tokens[i].Type == PP_PUNCTUATOR && tokens[i].Text == ")" {
+		i++
+	}
+
+	// Common GCC builtins
+	supported := map[string]bool{
+		"__builtin_expect":            true,
+		"__builtin_constant_p":        true,
+		"__builtin_types_compatible_p": true,
+		"__builtin_choose_expr":       true,
+		"__builtin_offsetof":          true,
+		"__builtin_va_list":           true,
+		"__builtin_va_start":          true,
+		"__builtin_va_end":            true,
+		"__builtin_va_arg":            true,
+		"__builtin_va_copy":           true,
+		"__builtin_bswap16":           true,
+		"__builtin_bswap32":           true,
+		"__builtin_bswap64":           true,
+		"__builtin_clz":               true,
+		"__builtin_ctz":               true,
+		"__builtin_popcount":          true,
+		"__builtin_ffs":               true,
+		"__builtin_unreachable":       true,
+		"__builtin_trap":              true,
+		"__builtin_prefetch":          true,
+		"__builtin_memcpy":            true,
+		"__builtin_memset":            true,
+		"__builtin_memmove":           true,
+		"__builtin_strlen":            true,
+		"__builtin_strcmp":            true,
+		"__builtin_object_size":       true,
+		"__builtin_alloca":            true,
+		"__builtin_frame_address":     true,
+		"__builtin_return_address":    true,
+		"__builtin_assume_aligned":    false,
+		"__builtin_available":         false,
+	}
+
+	if val, ok := supported[builtinName]; ok && val {
+		return i, "1"
+	}
+	return i, "0"
+}
+
+// processHasCppAttribute handles __has_cpp_attribute(x)
+func (cp *ConditionalProcessor) processHasCppAttribute(tokens []Token, startIdx int) (int, string) {
+	i := startIdx + 1 // skip __has_cpp_attribute
+
+	// Skip whitespace and arguments to find closing )
+	parenDepth := 0
+	for i < len(tokens) {
+		if tokens[i].Type == PP_PUNCTUATOR && tokens[i].Text == "(" {
+			parenDepth++
+		} else if tokens[i].Type == PP_PUNCTUATOR && tokens[i].Text == ")" {
+			if parenDepth == 0 {
+				break
+			}
+			parenDepth--
+		}
+		i++
+	}
+	if i < len(tokens) && tokens[i].Type == PP_PUNCTUATOR && tokens[i].Text == ")" {
+		i++
+	}
+
+	// We don't support C++ attributes
+	return i, "0"
+}
+
+// processHasWarning handles __has_warning("-Wxxx")
+func (cp *ConditionalProcessor) processHasWarning(tokens []Token, startIdx int) (int, string) {
+	i := startIdx + 1 // skip __has_warning
+
+	// Skip to closing )
+	parenDepth := 0
+	for i < len(tokens) {
+		if tokens[i].Type == PP_PUNCTUATOR && tokens[i].Text == "(" {
+			parenDepth++
+		} else if tokens[i].Type == PP_PUNCTUATOR && tokens[i].Text == ")" {
+			if parenDepth == 0 {
+				break
+			}
+			parenDepth--
+		}
+		i++
+	}
+	if i < len(tokens) && tokens[i].Type == PP_PUNCTUATOR && tokens[i].Text == ")" {
+		i++
+	}
+
+	// Return 0 for all warnings (we don't track them)
+	return i, "0"
 }
 
 // evaluateExpr evaluates a constant expression from tokens.

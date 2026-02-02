@@ -582,3 +582,37 @@ int main_code;
 		t.Errorf("expected sibling to be found relative to base, got: %s", result)
 	}
 }
+
+func TestPreprocessor_GnucMacro(t *testing.T) {
+input := `#if defined(__GNUC__)
+yes
+#else
+no
+#endif`
+
+pp := NewPreprocessor(PreprocessorOptions{})
+result, err := pp.PreprocessString(input, "test.c")
+if err != nil {
+t.Fatalf("Preprocessing failed: %v", err)
+}
+
+// Should contain "yes" since __GNUC__ is defined
+if !strings.Contains(result, "yes") {
+t.Errorf("Expected 'yes' but got:\n%s", result)
+}
+}
+
+func TestPreprocessor_GnucValue(t *testing.T) {
+input := `__GNUC__`
+
+pp := NewPreprocessor(PreprocessorOptions{})
+result, err := pp.PreprocessString(input, "test.c")
+if err != nil {
+t.Fatalf("Preprocessing failed: %v", err)
+}
+
+// Should expand to "4"
+if !strings.Contains(result, "4") {
+t.Errorf("Expected '4' but got:\n%s", result)
+}
+}

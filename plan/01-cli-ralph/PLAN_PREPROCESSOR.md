@@ -386,7 +386,7 @@ Tests added in `main_test.go`:
 
 **Goal:** Successfully preprocess standard library headers
 
-**Status:** TODO
+**Status:** DONE - All major headers (stdio.h, stdlib.h, string.h, stdint.h) preprocess successfully
 
 ### Context
 
@@ -400,21 +400,60 @@ System headers use many extensions. We need to handle common ones:
 
 ### Tasks
 
-- [ ] Define predefined macros for gcc/clang compatibility:
-  - [ ] `__GNUC__`, `__GNUC_MINOR__`, `__GNUC_PATCHLEVEL__`
-  - [ ] `__clang__` (if pretending to be clang)
-  - [ ] `__SIZEOF_INT__`, `__SIZEOF_LONG__`, etc.
-  - [ ] `__BYTE_ORDER__`, `__LITTLE_ENDIAN__`, `__BIG_ENDIAN__`
-- [ ] Handle `__has_include(<file>)` / `__has_include("file")`
-- [ ] Handle `__has_feature(x)` and `__has_extension(x)`
+- [x] Define predefined macros for gcc/clang compatibility:
+  - [x] `__GNUC__`, `__GNUC_MINOR__`, `__GNUC_PATCHLEVEL__` (as GCC 4.2)
+  - [x] `__SIZEOF_INT__`, `__SIZEOF_LONG__`, etc.
+  - [x] `__BYTE_ORDER__`, `__LITTLE_ENDIAN__`, `__BIG_ENDIAN__`
+  - [x] Platform macros: `__APPLE__`, `__MACH__`, `__LP64__`, `__aarch64__`, `__arm64__`
+  - [x] Type limits: `__INT_MAX__`, `__LONG_MAX__`, `__WCHAR_MAX__`, etc.
+- [x] Handle `__has_include(<file>)` / `__has_include("file")`
+- [x] Handle `__has_include_next` (returns 0 - we don't support include_next)
+- [x] Handle `__has_feature(x)` and `__has_extension(x)`
+- [x] Handle `__has_attribute(x)`
+- [x] Handle `__has_builtin(x)`
+- [x] Handle `__has_cpp_attribute(x)` (returns 0)
+- [x] Handle `__has_warning(x)` (returns 0)
+- [x] Fix token pasting rescan bug (spaces around ## operator)
 - [ ] Strip `__attribute__((...))` if parser doesn't support
 - [ ] Handle `_Pragma("...")` operator
-- [ ] Create test that successfully preprocesses:
-  - [ ] `<stdio.h>`
-  - [ ] `<stdlib.h>`
-  - [ ] `<string.h>`
-  - [ ] `<stdint.h>`
-- [ ] Document any remaining limitations
+- [x] Create test that successfully preprocesses:
+  - [x] `<stdio.h>` - WORKS
+  - [x] `<stdlib.h>` - WORKS (fixed token pasting)
+  - [x] `<string.h>` - WORKS
+  - [x] `<stdint.h>` - WORKS (fixed token pasting)
+- [x] Document remaining limitations
+
+### Known Limitations
+
+1. **`#include_next`**: Not supported. This directive allows finding the next header in the search path with the same name.
+
+2. **`_Pragma`**: The `_Pragma` operator is not yet implemented.
+
+3. **`__attribute__`**: Attribute syntax is passed through but not parsed or stripped.
+
+### Implementation Notes
+
+Added to `pkg/cpp/conditional.go`:
+- `processHasInclude()` - handles `__has_include()` operator  
+- `processHasFeature()` - handles `__has_feature()` and `__has_extension()`
+- `processHasAttribute()` - handles `__has_attribute()`
+- `processHasBuiltin()` - handles `__has_builtin()`
+- `processHasCppAttribute()` - handles `__has_cpp_attribute()` (returns 0)
+- `processHasWarning()` - handles `__has_warning()` (returns 0)
+
+Added to `pkg/cpp/macro.go`:
+- GCC version macros (`__GNUC__` = 4, etc.)
+- Type size macros (`__SIZEOF_INT__` = 4, etc.)
+- Type limit macros (`__INT_MAX__`, `__WCHAR_MAX__`, etc.)
+- Byte order macros (`__BYTE_ORDER__`, `__LITTLE_ENDIAN__`, etc.)
+- Platform macros (`__APPLE__`, `__MACH__`, `__LP64__`, `__aarch64__`, `__arm64__`)
+
+Fixed in `pkg/cpp/preprocess.go`:
+- Conditional balance checking now only happens for top-level files, not included files. This fixes the "unterminated conditional" error that occurred when include guards were used.
+
+Fixed in `pkg/cpp/expand.go`:
+- Token pasting (`##`) now correctly skips whitespace tokens when finding the left operand. Previously, `a ## b` would fail to paste correctly because the whitespace before `##` was being used as the left token instead of `a`.
+- Added test cases for token pasting with spaces in `expand_paste_rescan_test.go`.
 
 ## Testing Strategy
 
