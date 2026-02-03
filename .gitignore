@@ -15,3 +15,6 @@ coverage/
 
 # Preprocessed output
 *.i
+
+# Compiled test binaries
+testdata/example-c/hello
