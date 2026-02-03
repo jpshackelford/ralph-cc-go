@@ -201,7 +201,6 @@ tests:
 
   ## C1.11: While loop
   - name: "C1.11 - while count down"
-    skip: "Variable tracking across loop iterations broken - conditionals work but register allocation has issues"
     input: |
       int main() {
         int n = 5;
@@ -225,7 +224,6 @@ tests:
 
   ## C1.12: For loop
   - name: "C1.12 - for loop sum"
-    skip: "Variable tracking across loop iterations broken - conditionals work but register allocation has issues"
     input: |
       int main() {
         int s = 0;
@@ -358,7 +356,6 @@ tests:
 
   ## C2.8: Break/continue
   - name: "C2.8 - break in loop"
-    skip: "Variable tracking across loop iterations broken - conditionals work but register allocation has issues"
     input: |
       int main() {
         int i = 0;

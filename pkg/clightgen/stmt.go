@@ -67,6 +67,21 @@ func transformStmt(stmt cabs.Stmt, simplExpr *simplexpr.Transformer) clight.Stmt
 		if s.Init != nil {
 			initResult := simplExpr.TransformExpr(s.Init)
 			initStmt = clight.Seq(initResult.Stmts...)
+		} else if len(s.InitDecl) > 0 {
+			// C99 for-loop declaration: for (int i = 0; ...)
+			var stmts []clight.Stmt
+			for _, decl := range s.InitDecl {
+				if decl.Initializer != nil {
+					typ := TypeFromString(decl.TypeSpec)
+					result := simplExpr.TransformExpr(decl.Initializer)
+					stmts = append(stmts, result.Stmts...)
+					stmts = append(stmts, clight.Sassign{
+						LHS: clight.Evar{Name: decl.Name, Typ: typ},
+						RHS: result.Expr,
+					})
+				}
+			}
+			initStmt = clight.Seq(stmts...)
 		}
 
 		var condExpr clight.Expr = clight.Econst_int{Value: 1, Typ: ctypes.Int()} // default: true

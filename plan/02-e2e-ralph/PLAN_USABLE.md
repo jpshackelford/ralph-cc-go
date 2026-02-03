@@ -149,8 +149,8 @@ The compiler is considered **minimally usable** when:
 | C1.8 | Return statement | ✅ PASS | Early return works |
 | C1.9 | If statement | ✅ PASS | Fixed: CMP now emitted before branch |
 | C1.10 | If-else statement | ✅ PASS | Fixed: CMP now emitted before branch |
-| C1.11 | While loop | ⚠️ PARTIAL | Condition fixed, but variable tracking across iterations broken |
-| C1.12 | For loop | ⚠️ PARTIAL | Condition fixed, but variable tracking across iterations broken |
+| C1.11 | While loop | ✅ PASS | Fixed: temp ID collision and return value handling |
+| C1.12 | For loop | ✅ PASS | Fixed: C99 for-loop declarations and temp handling |
 
 ### Critical Issues Found
 
@@ -221,10 +221,9 @@ b.gt .Ltarget
 
 ### What's Broken (verified)
 
-1. **Variable tracking in loops**: Loops that modify variables across iterations don't track
-   values correctly - the sum/accumulator gets lost in register allocation
-2. **Pointers and arrays**: Address-of (`&x`) and dereferencing (`*p`) have codegen issues
-3. **Logical not**: `!0` returns wrong value
+1. **Pointers**: Address-of (`&x`) and dereferencing (`*p`) have codegen issues
+2. **Logical not**: `!0` returns wrong value
+3. **String literal assignment**: `char *s = "hello"` has assembly issues on macOS (.rodata section)
 
 ### Fix Tasks
 
@@ -248,31 +247,50 @@ b.gt .Ltarget
     - Now generates: cmp + b.cond instructions correctly
     - All C1.9 and C1.10 tests pass (7/7)
 
-[ ] **FIX-003**: Fix variable tracking across loop iterations
-    - Loops with modified variables (while countdown, for loop sum) return wrong values
-    - Register allocation seems to lose track of which register holds the accumulator
-    - Need to investigate RTL/LTL/Mach transformation for local variable handling
+[x] **FIX-003**: Fix variable tracking across loop iterations (FIXED 2026-02-02)
+    - Root causes found:
+      1. simplexpr temps collided with simpllocals temps (both started at ID 1)
+      2. C99 for-loop declarations (`for (int i = 0; ...)`) not handled
+      3. Return values not moved to X0 register before returning
+    - Fixes applied:
+      1. Added SetNextTempID() to simplexpr, called from clightgen to start after simpllocals temps
+      2. Added handling for `s.InitDecl` in clightgen/stmt.go For case
+      3. Added collectLocalsFromStmt() to properly collect for-loop declaration variables
+      4. Fixed regalloc/transform.go Ireturn case to emit move to return register
+    - All loop tests now pass:
+      - C1.11 while count down: PASS
+      - C1.11 while never runs: PASS
+      - C1.12 for loop sum: PASS
+      - C2.8 break in loop: PASS
 
 ### Usability Verdict
 
-**APPROACHING USABLE** for ~100 line programs with common features.
+**MINIMALLY USABLE** for ~100 line programs with common features!
 
-With the conditional branch fix, significant progress has been made:
-- ✅ If/else statements work correctly
-- ✅ Simple while loops (like `while(0)`) work  
+All Category 1 (core) features now work:
+- ✅ Integer constants and arithmetic
+- ✅ Variables and assignment
+- ✅ Functions and calls
+- ✅ If/else statements
+- ✅ While loops with variable mutation
+- ✅ For loops with variable mutation
 - ✅ Comparisons work both as expressions and in branch conditions
 - ✅ Ternary operator works
-- ⚠️ Loops with variable mutation need register allocation fixes
+- ✅ Break in loops works
 
-**Estimated effort to reach "minimally usable"**: 
-- 1-2 issues to fix (variable tracking in loops, pointer/array codegen)
-- Medium complexity - likely in register allocation or RTL generation
-- After fix: 100% of Category 1 features should work
+**Remaining issues for Category 2**:
+- ⚠️ Pointers need codegen fixes
+- ⚠️ Logical not (`!0`) returns wrong value
+- ⚠️ String literals have macOS assembly format issues
+
+**Estimated effort to reach "fully usable"**: 
+- 2-3 issues to fix (pointers, logical not, string assembly)
+- Low-medium complexity
 
 ### Next Steps
 
 1. [x] Fix conditional branch codegen - DONE
-2. [ ] Investigate variable tracking in loops (register allocation issue)
+2. [x] Fix variable tracking in loops - DONE
 3. [ ] Fix pointer and array codegen
-4. [ ] Re-run test suite to verify all C1 tests pass
-5. [ ] Update feature matrix with final results
+4. [ ] Fix logical not codegen
+5. [ ] Fix string literal assembly for macOS

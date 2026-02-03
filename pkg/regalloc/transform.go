@@ -157,11 +157,22 @@ func transformInstruction(instr rtl.Instruction, alloc *AllocationResult) *ltl.B
 		}
 
 	case rtl.Ireturn:
-		return &ltl.BBlock{
-			Body: []ltl.Instruction{
-				ltl.Lreturn{},
-			},
+		var instrs []ltl.Instruction
+		// If there's a return value, move it to the return register
+		if i.Arg != nil {
+			srcLoc := alloc.RegToLoc[*i.Arg]
+			destLoc := ReturnLocation(false) // TODO: handle float returns
+			// Only add move if not already in return register
+			if srcLoc != destLoc {
+				instrs = append(instrs, ltl.Lop{
+					Op:   rtl.Omove{},
+					Args: []ltl.Loc{srcLoc},
+					Dest: destLoc,
+				})
+			}
 		}
+		instrs = append(instrs, ltl.Lreturn{})
+		return &ltl.BBlock{Body: instrs}
 	}
 
 	// Fallback: empty block with nop

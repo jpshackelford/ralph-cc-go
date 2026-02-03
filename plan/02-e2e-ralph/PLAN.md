@@ -198,6 +198,10 @@ The following issues prevent hello.c from running correctly after compilation:
     - Progress: FIX-002 (conditional branch CMP emission) completed 2026-02-02
       - Fixed translateCond() in pkg/asmgen/transform.go to emit CMP before Bcond
       - All if/else tests now pass (C1.9, C1.10)
-    - Remaining: FIX-003 (variable tracking in loops)
-      - Loops with modified variables return wrong values
-      - Register allocation issue - see PLAN_USABLE.md for details
+    - Progress: FIX-003 (variable tracking in loops) completed 2026-02-02
+      - Fixed temp ID collision between simplexpr and simpllocals
+      - Fixed C99 for-loop declarations (int i = 0 in for init)
+      - Fixed return value not moved to X0 register
+      - All loop tests now pass (C1.11, C1.12, C2.8)
+    - STATUS: **MINIMALLY USABLE** - All Category 1 features work!
+    - Remaining: pointers, logical not, string literal assembly (Category 2 issues)

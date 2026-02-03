@@ -86,13 +86,14 @@ func translateFunction(fn *cabs.FunDef) clight.Function {
 		simplExpr.SetType(param.Name, TypeFromString(param.TypeSpec))
 	}
 
-	// Set starting temp ID after simpllocals temps
+	// Set starting temp ID after simpllocals temps to avoid collision
 	nextTemp := 1
 	for _, info := range localInfos {
 		if info.Promoted && info.TempID >= nextTemp {
 			nextTemp = info.TempID + 1
 		}
 	}
+	simplExpr.SetNextTempID(nextTemp)
 
 	// Transform the body
 	var body clight.Stmt = clight.Sskip{}
@@ -130,20 +131,52 @@ func translateFunction(fn *cabs.FunDef) clight.Function {
 // collectLocals extracts local variable declarations from a block.
 func collectLocals(block *cabs.Block, locals *[]clight.VarDecl, simplExpr *simplexpr.Transformer) {
 	for _, item := range block.Items {
-		switch s := item.(type) {
-		case cabs.DeclStmt:
-			for _, decl := range s.Decls {
-				typ := TypeFromString(decl.TypeSpec)
-				simplExpr.SetType(decl.Name, typ)
-				*locals = append(*locals, clight.VarDecl{
-					Name: decl.Name,
-					Type: typ,
-				})
+		collectLocalsFromStmt(item, locals, simplExpr)
+	}
+}
+
+// collectLocalsFromStmt extracts local variable declarations from a statement.
+func collectLocalsFromStmt(item cabs.Stmt, locals *[]clight.VarDecl, simplExpr *simplexpr.Transformer) {
+	switch s := item.(type) {
+	case cabs.DeclStmt:
+		for _, decl := range s.Decls {
+			typ := TypeFromString(decl.TypeSpec)
+			simplExpr.SetType(decl.Name, typ)
+			*locals = append(*locals, clight.VarDecl{
+				Name: decl.Name,
+				Type: typ,
+			})
+		}
+	case cabs.Block:
+		collectLocals(&s, locals, simplExpr)
+	case *cabs.Block:
+		collectLocals(s, locals, simplExpr)
+	case cabs.For:
+		// C99 for-loop declarations
+		for _, decl := range s.InitDecl {
+			typ := TypeFromString(decl.TypeSpec)
+			simplExpr.SetType(decl.Name, typ)
+			*locals = append(*locals, clight.VarDecl{
+				Name: decl.Name,
+				Type: typ,
+			})
+		}
+		// Recurse into body
+		collectLocalsFromStmt(s.Body, locals, simplExpr)
+	case cabs.While:
+		collectLocalsFromStmt(s.Body, locals, simplExpr)
+	case cabs.DoWhile:
+		collectLocalsFromStmt(s.Body, locals, simplExpr)
+	case cabs.If:
+		collectLocalsFromStmt(s.Then, locals, simplExpr)
+		if s.Else != nil {
+			collectLocalsFromStmt(s.Else, locals, simplExpr)
+		}
+	case cabs.Switch:
+		for _, c := range s.Cases {
+			for _, stmt := range c.Stmts {
+				collectLocalsFromStmt(stmt, locals, simplExpr)
 			}
-		case cabs.Block:
-			collectLocals(&s, locals, simplExpr)
-		case *cabs.Block:
-			collectLocals(s, locals, simplExpr)
 		}
 	}
 }

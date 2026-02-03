@@ -30,6 +30,11 @@ func (t *Transformer) Reset() {
 	t.tempTypes = nil
 }
 
+// SetNextTempID sets the starting temp ID (to continue from other passes).
+func (t *Transformer) SetNextTempID(id int) {
+	t.nextTempID = id
+}
+
 // TempTypes returns the types of all temporaries generated during transformation.
 func (t *Transformer) TempTypes() []ctypes.Type {
 	return t.tempTypes
