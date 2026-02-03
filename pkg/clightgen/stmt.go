@@ -7,6 +7,22 @@ import (
 	"github.com/raymyers/ralph-cc/pkg/simplexpr"
 )
 
+// coerceToType coerces an expression to a target type.
+// For integer constants being assigned to long variables, this converts
+// Econst_int to Econst_long to ensure proper 64-bit handling.
+func coerceToType(expr clight.Expr, targetType ctypes.Type) clight.Expr {
+	// Check if target is a long type
+	_, isLong := targetType.(ctypes.Tlong)
+	if !isLong {
+		return expr
+	}
+	// Convert integer constants to long constants
+	if intConst, ok := expr.(clight.Econst_int); ok {
+		return clight.Econst_long{Value: intConst.Value, Typ: targetType}
+	}
+	return expr
+}
+
 // transformStmt transforms a Cabs statement to a Clight statement.
 func transformStmt(stmt cabs.Stmt, simplExpr *simplexpr.Transformer) clight.Stmt {
 	switch s := stmt.(type) {
@@ -77,7 +93,7 @@ func transformStmt(stmt cabs.Stmt, simplExpr *simplexpr.Transformer) clight.Stmt
 					stmts = append(stmts, result.Stmts...)
 					stmts = append(stmts, clight.Sassign{
 						LHS: clight.Evar{Name: decl.Name, Typ: typ},
-						RHS: result.Expr,
+						RHS: coerceToType(result.Expr, typ),
 					})
 				}
 			}
@@ -169,7 +185,7 @@ func transformStmt(stmt cabs.Stmt, simplExpr *simplexpr.Transformer) clight.Stmt
 				stmts = append(stmts, result.Stmts...)
 				stmts = append(stmts, clight.Sassign{
 					LHS: clight.Evar{Name: decl.Name, Typ: typ},
-					RHS: result.Expr,
+					RHS: coerceToType(result.Expr, typ),
 				})
 			}
 		}

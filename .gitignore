@@ -18,3 +18,7 @@ coverage/
 
 # Compiled test binaries
 testdata/example-c/hello
+testdata/example-c/fib
+
+# Object files
+*.o

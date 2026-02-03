@@ -6,6 +6,7 @@ package linearize
 import (
 	"github.com/raymyers/ralph-cc/pkg/linear"
 	"github.com/raymyers/ralph-cc/pkg/ltl"
+	"github.com/raymyers/ralph-cc/pkg/rtl"
 )
 
 // TransformProgram transforms an entire LTL program to Linear
@@ -178,7 +179,9 @@ func (l *linearizer) emitBlock(result *linear.Function, node ltl.Node, orderIdx 
 
 	// Emit body instructions (except terminator)
 	for i := 0; i < len(block.Body)-1; i++ {
-		result.Append(l.convertInstruction(block.Body[i]))
+		for _, inst := range l.convertInstruction(block.Body[i]) {
+			result.Append(inst)
+		}
 	}
 
 	// Handle terminator specially for fall-through optimization
@@ -189,25 +192,143 @@ func (l *linearizer) emitBlock(result *linear.Function, node ltl.Node, orderIdx 
 }
 
 // convertInstruction converts an LTL instruction to Linear
-func (l *linearizer) convertInstruction(inst ltl.Instruction) linear.Instruction {
+// Returns a slice since some instructions expand to multiple (e.g., call with arg moves)
+func (l *linearizer) convertInstruction(inst ltl.Instruction) []linear.Instruction {
 	switch i := inst.(type) {
 	case ltl.Lnop:
 		// Skip nops in linearized code
 		return nil
 	case ltl.Lop:
-		return linear.Lop{Op: i.Op, Args: i.Args, Dest: i.Dest}
+		return []linear.Instruction{linear.Lop{Op: i.Op, Args: i.Args, Dest: i.Dest}}
 	case ltl.Lload:
-		return linear.Lload{Chunk: i.Chunk, Addr: i.Addr, Args: i.Args, Dest: i.Dest}
+		return []linear.Instruction{linear.Lload{Chunk: i.Chunk, Addr: i.Addr, Args: i.Args, Dest: i.Dest}}
 	case ltl.Lstore:
-		return linear.Lstore{Chunk: i.Chunk, Addr: i.Addr, Args: i.Args, Src: i.Src}
+		return []linear.Instruction{linear.Lstore{Chunk: i.Chunk, Addr: i.Addr, Args: i.Args, Src: i.Src}}
 	case ltl.Lcall:
-		return linear.Lcall{Sig: i.Sig, Fn: l.convertFunRef(i.Fn)}
+		// Generate moves to place arguments in X0, X1, X2, ... before the call
+		return l.convertCall(i)
 	case ltl.Lbuiltin:
-		return linear.Lbuiltin{Builtin: i.Builtin, Args: i.Args, Dest: i.Dest}
+		return []linear.Instruction{linear.Lbuiltin{Builtin: i.Builtin, Args: i.Args, Dest: i.Dest}}
 	default:
 		// Terminal instructions are handled separately
 		return nil
 	}
+}
+
+// IntArgRegs are the argument registers for ARM64 calling convention
+var intArgRegs = []ltl.MReg{ltl.X0, ltl.X1, ltl.X2, ltl.X3, ltl.X4, ltl.X5, ltl.X6, ltl.X7}
+
+// tempReg is a scratch register used for parallel moves
+// X8 is caller-saved and not used for arguments
+const tempReg = ltl.X8
+
+// convertCall generates move instructions to place arguments in the correct
+// registers (X0, X1, ...) before emitting the call instruction.
+// This implements the ARM64 calling convention for function arguments.
+// Handles the parallel move problem by using a temp register for cycles.
+func (l *linearizer) convertCall(call ltl.Lcall) []linear.Instruction {
+	// Build a mapping from target register to source location
+	// moves[dest] = src means we need to do: dest = src
+	moves := make(map[ltl.MReg]ltl.Loc)
+	for i, argLoc := range call.Args {
+		if i >= len(intArgRegs) {
+			// Arguments beyond X7 go on the stack - not implemented yet
+			break
+		}
+		targetReg := intArgRegs[i]
+
+		// If the argument is already in the right register, no move needed
+		if regLoc, ok := argLoc.(ltl.R); ok && regLoc.Reg == targetReg {
+			continue
+		}
+
+		moves[targetReg] = argLoc
+	}
+
+	// Generate moves using a simple algorithm that handles cycles
+	var result []linear.Instruction
+	done := make(map[ltl.MReg]bool)
+
+	// isSourceOfPendingMove returns true if reg is the source of a move that hasn't been done
+	isSourceOfPendingMove := func(reg ltl.MReg) bool {
+		for dest, src := range moves {
+			if done[dest] {
+				continue
+			}
+			if srcReg, ok := src.(ltl.R); ok && srcReg.Reg == reg {
+				return true
+			}
+		}
+		return false
+	}
+
+	for len(done) < len(moves) {
+		madeProgress := false
+
+		// Try to find a move where the destination is not needed as a source
+		for dest, src := range moves {
+			if done[dest] {
+				continue
+			}
+
+			// Check if this destination register is used as source by another pending move
+			if isSourceOfPendingMove(dest) {
+				continue
+			}
+
+			// Safe to do this move
+			result = append(result, linear.Lop{
+				Op:   rtl.Omove{},
+				Args: []ltl.Loc{src},
+				Dest: ltl.R{Reg: dest},
+			})
+			done[dest] = true
+			madeProgress = true
+		}
+
+		// If no progress, we have a cycle - break it with temp register
+		if !madeProgress {
+			// Find any pending move and save its source to temp
+			for dest, src := range moves {
+				if done[dest] {
+					continue
+				}
+
+				srcReg, ok := src.(ltl.R)
+				if !ok {
+					// Non-register source - just do the move
+					result = append(result, linear.Lop{
+						Op:   rtl.Omove{},
+						Args: []ltl.Loc{src},
+						Dest: ltl.R{Reg: dest},
+					})
+					done[dest] = true
+					madeProgress = true
+					break
+				}
+
+				// Save the source value in temp
+				result = append(result, linear.Lop{
+					Op:   rtl.Omove{},
+					Args: []ltl.Loc{ltl.R{Reg: srcReg.Reg}},
+					Dest: ltl.R{Reg: tempReg},
+				})
+
+				// Update moves map: any move that uses srcReg as source now uses temp
+				for dest2, src2 := range moves {
+					if srcReg2, ok := src2.(ltl.R); ok && srcReg2.Reg == srcReg.Reg {
+						moves[dest2] = ltl.R{Reg: tempReg}
+					}
+				}
+				break
+			}
+		}
+	}
+
+	// Add the call instruction
+	result = append(result, linear.Lcall{Sig: call.Sig, Fn: l.convertFunRef(call.Fn)})
+
+	return result
 }
 
 // convertFunRef converts an LTL function reference to Linear

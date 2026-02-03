@@ -67,6 +67,14 @@ const NumAllocatableIntRegs = 27
 // NumAllocatableFloatRegs is the number of allocatable float registers
 const NumAllocatableFloatRegs = 32
 
+// FirstCalleeSavedColor is the color index of the first callee-saved register
+// in AllocatableIntRegs. Colors 0-16 are caller-saved (X0-X15, X18),
+// colors 17-26 are callee-saved (X19-X28).
+const FirstCalleeSavedColor = 17
+
+// NumCalleeSavedRegs is the number of callee-saved integer registers
+const NumCalleeSavedRegs = 10
+
 // ArgLocation returns the location for the i-th integer argument
 func ArgLocation(i int, isFloat bool) ltl.Loc {
 	if isFloat {

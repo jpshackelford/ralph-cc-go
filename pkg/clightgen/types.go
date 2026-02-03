@@ -24,9 +24,9 @@ func TypeFromString(typeName string) ctypes.Type {
 		return ctypes.Int()
 	case "unsigned int", "unsigned":
 		return ctypes.UInt()
-	case "long":
+	case "long", "long long", "signed long long":
 		return ctypes.Long()
-	case "unsigned long":
+	case "unsigned long", "unsigned long long":
 		return ctypes.Tlong{Sign: ctypes.Unsigned}
 	case "float":
 		return ctypes.Float()

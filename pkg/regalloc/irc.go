@@ -246,6 +246,11 @@ func (a *Allocator) combine(u, v rtl.Reg) {
 	a.coalescedNodes.Add(v)
 	a.alias[v] = u
 
+	// If either u or v is live across calls, the combined node must be too
+	if a.graph.LiveAcrossCalls.Contains(v) {
+		a.graph.LiveAcrossCalls.Add(u)
+	}
+
 	// Merge edges
 	for n := range a.graph.Edges[v] {
 		if !a.coalescedNodes.Contains(n) && n != u {
@@ -351,9 +356,16 @@ func (a *Allocator) assignColors() {
 			}
 		}
 
+		// Determine the starting color based on whether this register is live across calls
+		// If live across a call, only use callee-saved registers (colors FirstCalleeSavedColor and above)
+		startColor := 0
+		if a.graph.LiveAcrossCalls.Contains(r) {
+			startColor = FirstCalleeSavedColor
+		}
+
 		// Try to assign a color
 		color := -1
-		for c := 0; c < a.K; c++ {
+		for c := startColor; c < a.K; c++ {
 			if !usedColors[c] {
 				color = c
 				break

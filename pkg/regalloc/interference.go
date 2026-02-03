@@ -13,14 +13,18 @@ type InterferenceGraph struct {
 	Edges map[rtl.Reg]RegSet
 	// Preferences maps each register to preferred registers (for coalescing)
 	Preferences map[rtl.Reg]RegSet
+	// LiveAcrossCalls tracks registers that are live across function calls
+	// These must be assigned to callee-saved registers or spilled
+	LiveAcrossCalls RegSet
 }
 
 // NewInterferenceGraph creates an empty interference graph
 func NewInterferenceGraph() *InterferenceGraph {
 	return &InterferenceGraph{
-		Nodes:       NewRegSet(),
-		Edges:       make(map[rtl.Reg]RegSet),
-		Preferences: make(map[rtl.Reg]RegSet),
+		Nodes:           NewRegSet(),
+		Edges:           make(map[rtl.Reg]RegSet),
+		Preferences:     make(map[rtl.Reg]RegSet),
+		LiveAcrossCalls: NewRegSet(),
 	}
 }
 
@@ -133,6 +137,14 @@ func BuildInterferenceGraph(fn *rtl.Function, liveness *LivenessInfo) *Interfere
 				g.AddEdge(defReg, liveReg)
 			}
 		}
+
+		// Track registers live across function calls
+		// These must be allocated to callee-saved registers or spilled
+		if isCall(instr) {
+			for liveReg := range liveOut {
+				g.LiveAcrossCalls.Add(liveReg)
+			}
+		}
 	}
 
 	// Build preference edges for moves
@@ -145,6 +157,16 @@ func BuildInterferenceGraph(fn *rtl.Function, liveness *LivenessInfo) *Interfere
 	}
 
 	return g
+}
+
+// isCall returns true if the instruction is a function call
+func isCall(instr rtl.Instruction) bool {
+	switch instr.(type) {
+	case rtl.Icall:
+		return true
+	default:
+		return false
+	}
 }
 
 // isMove returns true if the instruction is a move operation

@@ -95,12 +95,24 @@ func transformInstruction(instr rtl.Instruction, alloc *AllocationResult) *ltl.B
 		case rtl.FunReg:
 			fn = ltl.FunReg{Loc: alloc.RegToLoc[f.Reg]}
 		}
-		return &ltl.BBlock{
-			Body: []ltl.Instruction{
-				ltl.Lcall{Sig: i.Sig, Fn: fn, Args: args},
-				ltl.Lbranch{Succ: ltl.Node(i.Succ)},
-			},
+		body := []ltl.Instruction{
+			ltl.Lcall{Sig: i.Sig, Fn: fn, Args: args},
 		}
+		// If call has a destination, move the return value (X0) to it
+		if i.Dest != 0 {
+			destLoc := alloc.RegToLoc[i.Dest]
+			retLoc := ReturnLocation(false) // TODO: handle float returns
+			// Only add move if destination is not already X0
+			if destLoc != retLoc {
+				body = append(body, ltl.Lop{
+					Op:   rtl.Omove{},
+					Args: []ltl.Loc{retLoc},
+					Dest: destLoc,
+				})
+			}
+		}
+		body = append(body, ltl.Lbranch{Succ: ltl.Node(i.Succ)})
+		return &ltl.BBlock{Body: body}
 
 	case rtl.Itailcall:
 		args := transformRegs(i.Args, alloc)
