@@ -93,6 +93,18 @@ func (ctx *SelectionContext) selectConst(c cminor.Econst) cminorsel.Expr {
 // selectUnop handles unary operations.
 func (ctx *SelectionContext) selectUnop(u cminor.Eunop) cminorsel.Expr {
 	arg := ctx.SelectExpr(u.Arg)
+
+	// Handle logical NOT specially: !x becomes (x == 0)
+	// This produces 1 when x is 0, and 0 when x is non-zero
+	if u.Op == cminor.Onotbool {
+		return cminorsel.Ecmp{
+			Op:    cminorsel.Ocmp,
+			Cmp:   cminorsel.Ceq,
+			Left:  arg,
+			Right: cminorsel.Econst{Const: cminorsel.Ointconst{Value: 0}},
+		}
+	}
+
 	return cminorsel.Eunop{
 		Op:  cminorsel.UnaryOp(u.Op),
 		Arg: arg,

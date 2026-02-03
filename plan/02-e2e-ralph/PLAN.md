@@ -203,5 +203,9 @@ The following issues prevent hello.c from running correctly after compilation:
       - Fixed C99 for-loop declarations (int i = 0 in for init)
       - Fixed return value not moved to X0 register
       - All loop tests now pass (C1.11, C1.12, C2.8)
+    - Progress: FIX-004 (logical NOT operator) completed 2026-02-02
+      - Fixed Onotbool by transforming to comparison (x == 0) in selection phase
+      - `!x` now correctly returns 1 for 0, 0 for non-zero
+      - C2.1 logical not test now passes
     - STATUS: **MINIMALLY USABLE** - All Category 1 features work!
-    - Remaining: pointers, logical not, string literal assembly (Category 2 issues)
+    - Remaining: pointers, string literal assembly (Category 2 issues)

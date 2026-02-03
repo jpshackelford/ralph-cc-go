@@ -218,11 +218,12 @@ b.gt .Ltarget
 8. **Simple loops**: `while (0)` and `while(cond)` with simple bodies work ✅
 9. **Ternary operator**: `x ? y : z` works correctly ✅
 10. **Logical operators**: `&&` and `||` work correctly ✅
+11. **Logical not**: `!x` now correctly returns 1 for 0, 0 for non-zero ✅
 
 ### What's Broken (verified)
 
 1. **Pointers**: Address-of (`&x`) and dereferencing (`*p`) have codegen issues
-2. **Logical not**: `!0` returns wrong value
+2. ~~**Logical not**: `!0` returns wrong value~~ **FIXED 2026-02-02**
 3. **String literal assignment**: `char *s = "hello"` has assembly issues on macOS (.rodata section)
 
 ### Fix Tasks
@@ -263,6 +264,17 @@ b.gt .Ltarget
       - C1.12 for loop sum: PASS
       - C2.8 break in loop: PASS
 
+[x] **FIX-004**: Fix logical NOT operator (FIXED 2026-02-02)
+    - Root cause: Onotbool was falling through to default in selection phase, 
+      being mapped to MOnegint (integer negation), then falling through to Omove 
+      in RTL translation
+    - Fix: Transform Onotbool to a comparison expression (x == 0) in selection phase
+      - `!x` becomes `Ecmp{Op: Ocmp, Cmp: Ceq, Left: x, Right: 0}`
+      - This correctly produces 1 when x is 0, and 0 when x is non-zero
+    - Modified pkg/selection/expr.go:selectUnop() to handle Onotbool specially
+    - Added unit test TestSelectExpr_Unop_LogicalNot
+    - C2.1 logical not test now passes
+
 ### Usability Verdict
 
 **MINIMALLY USABLE** for ~100 line programs with common features!
@@ -280,11 +292,11 @@ All Category 1 (core) features now work:
 
 **Remaining issues for Category 2**:
 - ⚠️ Pointers need codegen fixes
-- ⚠️ Logical not (`!0`) returns wrong value
+- ~~⚠️ Logical not (`!0`) returns wrong value~~ ✅ FIXED
 - ⚠️ String literals have macOS assembly format issues
 
 **Estimated effort to reach "fully usable"**: 
-- 2-3 issues to fix (pointers, logical not, string assembly)
+- 2 issues to fix (pointers, string assembly)
 - Low-medium complexity
 
 ### Next Steps
@@ -292,5 +304,5 @@ All Category 1 (core) features now work:
 1. [x] Fix conditional branch codegen - DONE
 2. [x] Fix variable tracking in loops - DONE
 3. [ ] Fix pointer and array codegen
-4. [ ] Fix logical not codegen
+4. [x] Fix logical not codegen - DONE (2026-02-02: transformed Onotbool to comparison with 0 in selection phase)
 5. [ ] Fix string literal assembly for macOS

@@ -137,6 +137,38 @@ func TestSelectExpr_Unop(t *testing.T) {
 	}
 }
 
+func TestSelectExpr_Unop_LogicalNot(t *testing.T) {
+	ctx := NewSelectionContext(nil, nil)
+	// !x should become (x == 0)
+	expr := cminor.Eunop{
+		Op:  cminor.Onotbool,
+		Arg: cminor.Evar{Name: "x"},
+	}
+	result := ctx.SelectExpr(expr)
+
+	// Should produce Ecmp, not Eunop
+	cmp, ok := result.(cminorsel.Ecmp)
+	if !ok {
+		t.Fatalf("expected Ecmp for !x, got %T", result)
+	}
+	if cmp.Op != cminorsel.Ocmp {
+		t.Errorf("expected Ocmp, got %v", cmp.Op)
+	}
+	if cmp.Cmp != cminorsel.Ceq {
+		t.Errorf("expected Ceq (equals), got %v", cmp.Cmp)
+	}
+	// Left should be the variable x
+	if v, ok := cmp.Left.(cminorsel.Evar); !ok || v.Name != "x" {
+		t.Errorf("expected Left to be Evar{Name:'x'}, got %T", cmp.Left)
+	}
+	// Right should be constant 0
+	if c, ok := cmp.Right.(cminorsel.Econst); !ok {
+		t.Errorf("expected Right to be Econst, got %T", cmp.Right)
+	} else if ic, ok := c.Const.(cminorsel.Ointconst); !ok || ic.Value != 0 {
+		t.Errorf("expected Right to be Ointconst{0}, got %v", c.Const)
+	}
+}
+
 func TestSelectExpr_Binop(t *testing.T) {
 	ctx := NewSelectionContext(nil, nil)
 	expr := cminor.Ebinop{
