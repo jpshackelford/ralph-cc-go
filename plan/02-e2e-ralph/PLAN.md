@@ -194,3 +194,10 @@ The following issues prevent hello.c from running correctly after compilation:
     - Also fixed run.sh to handle ADRP/ADD @PAGE/@PAGEOFF for macOS assembly
 
 [ ] How close is this to a usable compiler for short programs? Make a plan to determine the status rigorously. Study and update `plan/02-e2e-ralph/PLAN_USABLE.md` with progress. This task stays open untill it's all done. If you get stuck leave notes there and bail.
+    - Progress: FIX-001 (comparison expressions) completed previously
+    - Progress: FIX-002 (conditional branch CMP emission) completed 2026-02-02
+      - Fixed translateCond() in pkg/asmgen/transform.go to emit CMP before Bcond
+      - All if/else tests now pass (C1.9, C1.10)
+    - Remaining: FIX-003 (variable tracking in loops)
+      - Loops with modified variables return wrong values
+      - Register allocation issue - see PLAN_USABLE.md for details

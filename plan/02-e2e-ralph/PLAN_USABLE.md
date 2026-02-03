@@ -147,10 +147,10 @@ The compiler is considered **minimally usable** when:
 | C1.6 | Function definitions | ✅ PASS | With and without params |
 | C1.7 | Function calls | ✅ PASS | Multiple args, nested calls |
 | C1.8 | Return statement | ✅ PASS | Early return works |
-| C1.9 | If statement | ❌ FAIL | Branch conditions need CMP |
-| C1.10 | If-else statement | ❌ FAIL | Same issue - branch without CMP |
-| C1.11 | While loop | ❌ FAIL | Condition broken, infinite loops |
-| C1.12 | For loop | ❌ FAIL | Same condition issue |
+| C1.9 | If statement | ✅ PASS | Fixed: CMP now emitted before branch |
+| C1.10 | If-else statement | ✅ PASS | Fixed: CMP now emitted before branch |
+| C1.11 | While loop | ⚠️ PARTIAL | Condition fixed, but variable tracking across iterations broken |
+| C1.12 | For loop | ⚠️ PARTIAL | Condition fixed, but variable tracking across iterations broken |
 
 ### Critical Issues Found
 
@@ -182,16 +182,29 @@ cmp w1, w0
 cset w0, lt
 ```
 
-#### Issue 2: Conditional Branches Without Flag Setting
+#### Issue 2: Conditional Branches Without Flag Setting (FIXED)
 
-**Severity**: CRITICAL - Still blocking control flow
+**Severity**: CRITICAL - Was blocking control flow
 
-**Symptom**: `if (0)` generates `b.gt` without preceding CMP instruction
+**Symptom**: `if (0)` was generating `b.gt` without preceding CMP instruction
 
-**Impact**: Branch condition is undefined, leading to unpredictable behavior
+**Status**: ✅ FIXED (2026-02-02)
 
-**Note**: This is separate from comparison expressions (which are now fixed).
-Conditionals that use comparison results as branch conditions need additional work.
+**Root cause found**: `translateCond` in `pkg/asmgen/transform.go` was only emitting
+the conditional branch (`Bcond`) but not the comparison instruction (`CMP`) before it.
+The condition code types (`Ccomp`, `Ccompimm`, etc.) carry the comparison details and
+argument registers, but these were not being used to generate the actual comparison.
+
+**Fix**: Updated `translateCond` to:
+1. Emit appropriate `CMP` or `CMPi` instruction based on condition code type
+2. Handle all comparison variants (signed/unsigned, register/immediate, 32/64-bit, float)
+3. Then emit the conditional branch with the correct ARM64 condition code
+
+Now correctly generates:
+```asm
+cmp w0, w1      ; or cmp w0, #imm for immediate comparisons
+b.gt .Ltarget
+```
 
 ### What Works (verified)
 
@@ -201,12 +214,17 @@ Conditionals that use comparison results as branch conditions need additional wo
 4. **String literals**: "hello" style strings work with printf
 5. **printf**: External function calls to libc work (hello.c runs correctly)
 6. **Comparisons as expressions**: `return x < y;` now produces correct 0/1 values ✅
+7. **If statements**: `if (cond)` and `if (cond) ... else ...` work correctly ✅
+8. **Simple loops**: `while (0)` and `while(cond)` with simple bodies work ✅
+9. **Ternary operator**: `x ? y : z` works correctly ✅
+10. **Logical operators**: `&&` and `||` work correctly ✅
 
 ### What's Broken (verified)
 
-1. **Conditionals**: `if (condition)` doesn't emit CMP before branch  
-2. **Loops**: `while` and `for` loops with conditions don't terminate correctly
-3. **Control flow**: Branch instructions without preceding CMP
+1. **Variable tracking in loops**: Loops that modify variables across iterations don't track
+   values correctly - the sum/accumulator gets lost in register allocation
+2. **Pointers and arrays**: Address-of (`&x`) and dereferencing (`*p`) have codegen issues
+3. **Logical not**: `!0` returns wrong value
 
 ### Fix Tasks
 
@@ -221,31 +239,40 @@ Conditionals that use comparison results as branch conditions need additional wo
     - Now generates: cmp + cset instructions correctly
     - All C1.3 comparison tests pass (10/10)
 
-[ ] **FIX-002**: Ensure conditionals set comparison flags
-    - if/while/for conditions must emit CMP before branch
-    - Currently emitting b.gt without preceding CMP
-    - Note: Separate from comparison expressions (which now work)
+[x] **FIX-002**: Ensure conditionals set comparison flags
+    - Root cause: translateCond() in pkg/asmgen/transform.go only emitted Bcond without CMP
+    - Fixed by updating translateCond() to:
+      1. Emit CMP or CMPi instruction based on condition code type
+      2. Handle all variants: Ccomp, Ccompu, Ccompimm, Ccompuimm, Ccompl, Ccomplu, etc.
+      3. Then emit the conditional branch with correct ARM64 condition code
+    - Now generates: cmp + b.cond instructions correctly
+    - All C1.9 and C1.10 tests pass (7/7)
+
+[ ] **FIX-003**: Fix variable tracking across loop iterations
+    - Loops with modified variables (while countdown, for loop sum) return wrong values
+    - Register allocation seems to lose track of which register holds the accumulator
+    - Need to investigate RTL/LTL/Mach transformation for local variable handling
 
 ### Usability Verdict
 
-**NOT YET USABLE** for ~100 line programs with common features.
+**APPROACHING USABLE** for ~100 line programs with common features.
 
-While basic arithmetic and function calls work correctly (which is impressive!), 
-the broken comparison operations mean that any program requiring:
-- Conditional logic (if/else)
-- Loops (while/for with conditions)
-- Boolean expressions
-
-...will not work correctly.
+With the conditional branch fix, significant progress has been made:
+- ✅ If/else statements work correctly
+- ✅ Simple while loops (like `while(0)`) work  
+- ✅ Comparisons work both as expressions and in branch conditions
+- ✅ Ternary operator works
+- ⚠️ Loops with variable mutation need register allocation fixes
 
 **Estimated effort to reach "minimally usable"**: 
-- 1-2 issues to fix (comparison codegen)
-- Medium complexity - likely in instruction selection or assembly generation
-- After fix: ~80% of Category 1 features should work
+- 1-2 issues to fix (variable tracking in loops, pointer/array codegen)
+- Medium complexity - likely in register allocation or RTL generation
+- After fix: 100% of Category 1 features should work
 
 ### Next Steps
 
-1. [ ] Investigate comparison codegen in pkg/selection/ and pkg/asmgen/
-2. [ ] Fix comparison operators to generate CMP + CSET/B.cond
-3. [ ] Re-run test suite to verify fixes
-4. [ ] Update feature matrix with final results
+1. [x] Fix conditional branch codegen - DONE
+2. [ ] Investigate variable tracking in loops (register allocation issue)
+3. [ ] Fix pointer and array codegen
+4. [ ] Re-run test suite to verify all C1 tests pass
+5. [ ] Update feature matrix with final results

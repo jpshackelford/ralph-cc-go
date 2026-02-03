@@ -712,29 +712,89 @@ func (ctx *genContext) translateBuiltin(i mach.Mbuiltin) []asm.Instruction {
 	return []asm.Instruction{asm.BL{Target: asm.Label(i.Builtin)}}
 }
 
-// translateCond generates conditional branch
+// translateCond generates compare instruction followed by conditional branch
 func (ctx *genContext) translateCond(i mach.Mcond) []asm.Instruction {
-	// Generate compare instruction based on condition code type
-	cc := condCodeToAsmCond(i.Cond, i.Args)
-	return []asm.Instruction{
-		asm.Bcond{Cond: cc, Target: ctx.machLabelToAsm(i.IfSo)},
-	}
-}
+	// Generate both compare instruction and conditional branch
+	result := make([]asm.Instruction, 0, 2)
 
-// condCodeToAsmCond converts a Mach condition code to an ARM64 condition
-func condCodeToAsmCond(cond mach.ConditionCode, args []mach.MReg) asm.CondCode {
-	switch c := cond.(type) {
+	// Generate compare instruction based on condition code type
+	switch c := i.Cond.(type) {
 	case rtl.Ccomp:
-		return conditionToCondCode(c.Cond, false)
+		// Signed integer comparison: CMP r1, r2
+		if len(i.Args) >= 2 {
+			result = append(result, asm.CMP{Rn: i.Args[0], Rm: i.Args[1], Is64: false})
+		}
+		result = append(result, asm.Bcond{Cond: conditionToCondCode(c.Cond, false), Target: ctx.machLabelToAsm(i.IfSo)})
+
 	case rtl.Ccompu:
-		return conditionToCondCode(c.Cond, true)
+		// Unsigned integer comparison: CMP r1, r2
+		if len(i.Args) >= 2 {
+			result = append(result, asm.CMP{Rn: i.Args[0], Rm: i.Args[1], Is64: false})
+		}
+		result = append(result, asm.Bcond{Cond: conditionToCondCode(c.Cond, true), Target: ctx.machLabelToAsm(i.IfSo)})
+
+	case rtl.Ccompimm:
+		// Signed integer comparison with immediate: CMP r1, #imm
+		if len(i.Args) >= 1 {
+			result = append(result, asm.CMPi{Rn: i.Args[0], Imm: int64(c.N), Is64: false})
+		}
+		result = append(result, asm.Bcond{Cond: conditionToCondCode(c.Cond, false), Target: ctx.machLabelToAsm(i.IfSo)})
+
+	case rtl.Ccompuimm:
+		// Unsigned integer comparison with immediate: CMP r1, #imm
+		if len(i.Args) >= 1 {
+			result = append(result, asm.CMPi{Rn: i.Args[0], Imm: int64(c.N), Is64: false})
+		}
+		result = append(result, asm.Bcond{Cond: conditionToCondCode(c.Cond, true), Target: ctx.machLabelToAsm(i.IfSo)})
+
 	case rtl.Ccompl:
-		return conditionToCondCode(c.Cond, false)
+		// Signed long comparison: CMP r1, r2 (64-bit)
+		if len(i.Args) >= 2 {
+			result = append(result, asm.CMP{Rn: i.Args[0], Rm: i.Args[1], Is64: true})
+		}
+		result = append(result, asm.Bcond{Cond: conditionToCondCode(c.Cond, false), Target: ctx.machLabelToAsm(i.IfSo)})
+
 	case rtl.Ccomplu:
-		return conditionToCondCode(c.Cond, true)
+		// Unsigned long comparison: CMP r1, r2 (64-bit)
+		if len(i.Args) >= 2 {
+			result = append(result, asm.CMP{Rn: i.Args[0], Rm: i.Args[1], Is64: true})
+		}
+		result = append(result, asm.Bcond{Cond: conditionToCondCode(c.Cond, true), Target: ctx.machLabelToAsm(i.IfSo)})
+
+	case rtl.Ccomplimm:
+		// Signed long comparison with immediate: CMP r1, #imm (64-bit)
+		if len(i.Args) >= 1 {
+			result = append(result, asm.CMPi{Rn: i.Args[0], Imm: c.N, Is64: true})
+		}
+		result = append(result, asm.Bcond{Cond: conditionToCondCode(c.Cond, false), Target: ctx.machLabelToAsm(i.IfSo)})
+
+	case rtl.Ccompluimm:
+		// Unsigned long comparison with immediate: CMP r1, #imm (64-bit)
+		if len(i.Args) >= 1 {
+			result = append(result, asm.CMPi{Rn: i.Args[0], Imm: c.N, Is64: true})
+		}
+		result = append(result, asm.Bcond{Cond: conditionToCondCode(c.Cond, true), Target: ctx.machLabelToAsm(i.IfSo)})
+
+	case rtl.Ccompf:
+		// Float64 comparison: FCMP d1, d2
+		if len(i.Args) >= 2 {
+			result = append(result, asm.FCMP{Fn: i.Args[0], Fm: i.Args[1], IsDouble: true})
+		}
+		result = append(result, asm.Bcond{Cond: conditionToCondCode(c.Cond, false), Target: ctx.machLabelToAsm(i.IfSo)})
+
+	case rtl.Ccomps:
+		// Float32 comparison: FCMP s1, s2
+		if len(i.Args) >= 2 {
+			result = append(result, asm.FCMP{Fn: i.Args[0], Fm: i.Args[1], IsDouble: false})
+		}
+		result = append(result, asm.Bcond{Cond: conditionToCondCode(c.Cond, false), Target: ctx.machLabelToAsm(i.IfSo)})
+
 	default:
-		return asm.CondAL
+		// Unknown condition - emit unconditional branch
+		result = append(result, asm.Bcond{Cond: asm.CondAL, Target: ctx.machLabelToAsm(i.IfSo)})
 	}
+
+	return result
 }
 
 // translateJumptable generates a switch/jump table
