@@ -224,3 +224,4 @@ The following issues prevent hello.c from running correctly after compilation:
     - Fixed args go in registers (X0, X1...), variadic args go on stack via Lsetstack
     - fib.c now prints correct Fibonacci sequence: 0 1 1 2 3 5 8 13 21 34 55 89 ...
     - Build artifacts (.o, executables) already in .gitignore
+[ ] Confirm that the last 5 commits made legit fix and did not hard code or other wide do shinanighans to pass the fib example. Record in `plan/02-e2e-ralph/FIB_FIX_EVAL.md`
