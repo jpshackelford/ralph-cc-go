@@ -217,10 +217,10 @@ The following issues prevent hello.c from running correctly after compilation:
       - C2.12 string literal assignment test passes
     - STATUS: **FULLY USABLE** - All Category 1 and Category 2 core features work!
     - 67 runtime tests pass (C1.*, C2.*, C3.1, C3.8)
-[ ] Study and updade `plan/02-e2e-ralph/PLAN_FIB.md`. Task: Investigate and solve this segfault, and ensure we're gitignoring build artifacts from the process. `./scripts/run.sh testdata/example-c/fib.c`.
-    - PARTIAL FIX: Fixed frame layout bug in pkg/stacking/layout.go
-    - Problem: callee-save registers were stored at FP+0, overwriting saved FP/LR
-    - Solution: Changed CalleeSaveOffset from 0 to 16 (after 16-byte FP/LR area)
-    - Updated LocalOffset and OutgoingOffset accordingly
-    - fib.c no longer crashes (bus error fixed), but still outputs wrong values
-    - Remaining: register allocation non-determinism and possible liveness bug
+[x] Study and updade `plan/02-e2e-ralph/PLAN_FIB.md`. Task: Investigate and solve this segfault, and ensure we're gitignoring build artifacts from the process. `./scripts/run.sh testdata/example-c/fib.c`.
+    - FIXED: Implemented Darwin ARM64 variadic calling convention
+    - Root cause: macOS ARM64 requires variadic args on stack, not in registers
+    - Solution: Added knownVariadicFuncs map and modified convertCall() in pkg/linearize/linearize.go
+    - Fixed args go in registers (X0, X1...), variadic args go on stack via Lsetstack
+    - fib.c now prints correct Fibonacci sequence: 0 1 1 2 3 5 8 13 21 34 55 89 ...
+    - Build artifacts (.o, executables) already in .gitignore

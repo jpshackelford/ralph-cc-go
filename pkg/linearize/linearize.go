@@ -4,10 +4,39 @@
 package linearize
 
 import (
+	"runtime"
+
 	"github.com/raymyers/ralph-cc/pkg/linear"
 	"github.com/raymyers/ralph-cc/pkg/ltl"
 	"github.com/raymyers/ralph-cc/pkg/rtl"
 )
+
+// knownVariadicFuncs lists known variadic C library functions.
+// On macOS ARM64, variadic arguments must be passed on the stack.
+var knownVariadicFuncs = map[string]int{
+	// printf family - first arg is format string in x0, rest on stack
+	"printf":   1, // 1 fixed arg (format)
+	"fprintf":  2, // 2 fixed args (file, format)
+	"sprintf":  2, // 2 fixed args (buf, format)
+	"snprintf": 3, // 3 fixed args (buf, size, format)
+	"dprintf":  2, // 2 fixed args (fd, format)
+
+	// scanf family
+	"scanf":  1,
+	"fscanf": 2,
+	"sscanf": 2,
+
+	// Other variadic functions
+	"execl":   1,
+	"execlp":  1,
+	"execle":  1,
+	"fcntl":   2,
+	"ioctl":   2,
+	"open":    2,
+	"openat":  3,
+	"semctl":  3,
+	"syslog":  2,
+}
 
 // TransformProgram transforms an entire LTL program to Linear
 func TransformProgram(prog *ltl.Program) *linear.Program {
@@ -222,17 +251,43 @@ var intArgRegs = []ltl.MReg{ltl.X0, ltl.X1, ltl.X2, ltl.X3, ltl.X4, ltl.X5, ltl.
 // X8 is caller-saved and not used for arguments
 const tempReg = ltl.X8
 
+// isVariadicCall checks if a function call is to a known variadic function
+// and returns the number of fixed arguments (0 if not variadic)
+func isVariadicCall(fn ltl.FunRef) (bool, int) {
+	switch f := fn.(type) {
+	case ltl.FunSymbol:
+		if fixedArgs, known := knownVariadicFuncs[f.Name]; known {
+			return true, fixedArgs
+		}
+	}
+	return false, 0
+}
+
 // convertCall generates move instructions to place arguments in the correct
 // registers (X0, X1, ...) before emitting the call instruction.
 // This implements the ARM64 calling convention for function arguments.
 // Handles the parallel move problem by using a temp register for cycles.
+//
+// On macOS ARM64, variadic arguments must be passed on the stack, not in registers.
+// We detect known variadic functions and generate stack stores for their varargs.
 func (l *linearizer) convertCall(call ltl.Lcall) []linear.Instruction {
+	// Check if this is a variadic call on macOS
+	isVariadic, fixedArgs := isVariadicCall(call.Fn)
+	useDarwinVariadicConvention := isVariadic && runtime.GOOS == "darwin"
+
 	// Build a mapping from target register to source location
 	// moves[dest] = src means we need to do: dest = src
 	moves := make(map[ltl.MReg]ltl.Loc)
+
+	// For variadic on macOS: only fixed args go in registers
+	maxRegArgs := len(intArgRegs)
+	if useDarwinVariadicConvention && fixedArgs < maxRegArgs {
+		maxRegArgs = fixedArgs
+	}
+
 	for i, argLoc := range call.Args {
-		if i >= len(intArgRegs) {
-			// Arguments beyond X7 go on the stack - not implemented yet
+		if i >= maxRegArgs {
+			// Arguments beyond register limit go on the stack
 			break
 		}
 		targetReg := intArgRegs[i]
@@ -247,6 +302,37 @@ func (l *linearizer) convertCall(call ltl.Lcall) []linear.Instruction {
 
 	// Generate moves using a simple algorithm that handles cycles
 	var result []linear.Instruction
+
+	// For macOS variadic calls: first store variadic args on the stack
+	if useDarwinVariadicConvention && len(call.Args) > fixedArgs {
+		// Store each variadic argument on the stack at [SP + offset]
+		// Each argument takes 8 bytes (padded)
+		for i := fixedArgs; i < len(call.Args); i++ {
+			stackOfs := int64((i - fixedArgs) * 8)
+			argLoc := call.Args[i]
+
+			// Lsetstack requires an MReg source, so ensure arg is in a register
+			var srcReg ltl.MReg
+			if regLoc, ok := argLoc.(ltl.R); ok {
+				srcReg = regLoc.Reg
+			} else {
+				// Move to temp register first
+				srcReg = tempReg
+				result = append(result, linear.Lop{
+					Op:   rtl.Omove{},
+					Args: []ltl.Loc{argLoc},
+					Dest: ltl.R{Reg: tempReg},
+				})
+			}
+			result = append(result, linear.Lsetstack{
+				Src:  srcReg,
+				Slot: ltl.SlotOutgoing,
+				Ofs:  stackOfs,
+				Ty:   ltl.Tlong, // All varargs padded to 8 bytes
+			})
+		}
+	}
+
 	done := make(map[ltl.MReg]bool)
 
 	// isSourceOfPendingMove returns true if reg is the source of a move that hasn't been done
