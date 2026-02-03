@@ -149,24 +149,19 @@ func (env *VarEnv) StackVars() []string {
 	return result
 }
 
-// TransformAddrOf transforms address-of on a local variable to a stack pointer offset.
-// For stack variable "x" at offset 8, &x becomes (stackptr + 8).
+// TransformAddrOf transforms address-of on a local variable to a stack address.
+// For stack variable "x" at offset 8, &x becomes Oaddrstack{Offset: 8}.
 func (env *VarEnv) TransformAddrOf(name string) cminor.Expr {
 	offset := env.GetStackOffset(name)
 	if offset < 0 {
 		panic("TransformAddrOf called on non-stack variable: " + name)
 	}
-	// Stack pointer is implicitly at offset 0
-	// Address of var is: $sp + offset
-	if offset == 0 {
-		return cminor.Econst{Const: cminor.Olongconst{Value: 0}}
-	}
-	return cminor.Econst{Const: cminor.Olongconst{Value: offset}}
+	return cminor.Econst{Const: cminor.Oaddrstack{Offset: offset}}
 }
 
 // TransformVarRead transforms a read of a local variable.
 // - Register vars: simple Evar reference
-// - Stack vars: Eload from stack offset
+// - Stack vars: Eload from stack address
 func (env *VarEnv) TransformVarRead(name string) cminor.Expr {
 	info, ok := env.Vars[name]
 	if !ok {
@@ -179,17 +174,15 @@ func (env *VarEnv) TransformVarRead(name string) cminor.Expr {
 	}
 
 	// Stack variable: load from stack offset
-	// In Cminor, we use Eload(chunk, $sp + offset)
-	// where $sp is represented as constant offset from stack frame base
 	return cminor.Eload{
 		Chunk: info.Chunk,
-		Addr:  cminor.Econst{Const: cminor.Olongconst{Value: info.Offset}},
+		Addr:  cminor.Econst{Const: cminor.Oaddrstack{Offset: info.Offset}},
 	}
 }
 
 // TransformVarWrite transforms a write to a local variable.
 // - Register vars: Sassign(name, value)
-// - Stack vars: Sstore(chunk, $sp + offset, value)
+// - Stack vars: Sstore(chunk, stackaddr, value)
 func (env *VarEnv) TransformVarWrite(name string, value cminor.Expr) cminor.Stmt {
 	info, ok := env.Vars[name]
 	if !ok {
@@ -204,7 +197,7 @@ func (env *VarEnv) TransformVarWrite(name string, value cminor.Expr) cminor.Stmt
 	// Stack variable: store to stack offset
 	return cminor.Sstore{
 		Chunk: info.Chunk,
-		Addr:  cminor.Econst{Const: cminor.Olongconst{Value: info.Offset}},
+		Addr:  cminor.Econst{Const: cminor.Oaddrstack{Offset: info.Offset}},
 		Value: value,
 	}
 }

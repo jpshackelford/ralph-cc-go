@@ -614,16 +614,19 @@ func conditionToCondCode(cond rtl.Condition, unsigned bool) asm.CondCode {
 
 // translateLoad generates load instructions
 func (ctx *genContext) translateLoad(i mach.Mload) []asm.Instruction {
-	base := i.Args[0]
+	var base asm.MReg
 	ofs := int64(0)
 
-	// Extract offset from addressing mode
+	// Extract offset and base from addressing mode
 	switch addr := i.Addr.(type) {
 	case rtl.Aindexed:
+		base = i.Args[0]
 		ofs = addr.Offset
 	case rtl.Ainstack:
 		base = asm.X29 // FP
 		ofs = addr.Offset
+	default:
+		base = i.Args[0]
 	}
 
 	// Generate appropriate load based on chunk type
@@ -651,16 +654,19 @@ func (ctx *genContext) translateLoad(i mach.Mload) []asm.Instruction {
 
 // translateStore generates store instructions
 func (ctx *genContext) translateStore(i mach.Mstore) []asm.Instruction {
-	base := i.Args[0]
+	var base asm.MReg
 	ofs := int64(0)
 
-	// Extract offset from addressing mode
+	// Extract offset and base from addressing mode
 	switch addr := i.Addr.(type) {
 	case rtl.Aindexed:
+		base = i.Args[0]
 		ofs = addr.Offset
 	case rtl.Ainstack:
 		base = asm.X29 // FP
 		ofs = addr.Offset
+	default:
+		base = i.Args[0]
 	}
 
 	// Generate appropriate store based on chunk type

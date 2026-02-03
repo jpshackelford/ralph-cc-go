@@ -165,6 +165,11 @@ type Oaddrsymbol struct {
 	Offset int64
 }
 
+// Oaddrstack represents the address of a stack slot
+type Oaddrstack struct {
+	Offset int64
+}
+
 // --- Expressions ---
 // Cminor expressions are similar to Csharpminor but use identifiers instead of temp IDs
 
@@ -345,6 +350,7 @@ func (Ofloatconst) implCminorNode() {}
 func (Olongconst) implCminorNode()  {}
 func (Osingleconst) implCminorNode() {}
 func (Oaddrsymbol) implCminorNode() {}
+func (Oaddrstack) implCminorNode()  {}
 func (Evar) implCminorNode()        {}
 func (Econst) implCminorNode()      {}
 func (Eunop) implCminorNode()       {}
@@ -374,6 +380,7 @@ func (Ofloatconst) implCminorConst() {}
 func (Olongconst) implCminorConst()  {}
 func (Osingleconst) implCminorConst() {}
 func (Oaddrsymbol) implCminorConst() {}
+func (Oaddrstack) implCminorConst()  {}
 
 // Marker methods for Expr interface
 func (Evar) implCminorExpr()   {}

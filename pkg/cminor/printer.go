@@ -289,6 +289,8 @@ func (p *Printer) printConst(c Constant) {
 		} else {
 			fmt.Fprintf(p.w, "&%s+%d", v.Name, v.Offset)
 		}
+	case Oaddrstack:
+		fmt.Fprintf(p.w, "[sp+%d]", v.Offset)
 	default:
 		fmt.Fprintf(p.w, "/* unknown const %T */", c)
 	}

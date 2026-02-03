@@ -96,7 +96,17 @@ func tryAglobal(addr cminor.Expr, globals map[string]bool) (AddressResult, bool)
 
 // tryAinstack tries to match: stack variable address (stackptr + offset)
 func tryAinstack(addr cminor.Expr, stackVars map[string]int64) (AddressResult, bool) {
-	// Direct stack variable reference
+	// Direct Oaddrstack constant (new form from cminorgen)
+	if c, ok := addr.(cminor.Econst); ok {
+		if stk, ok := c.Const.(cminor.Oaddrstack); ok {
+			return AddressResult{
+				Mode: cminorsel.Ainstack{Offset: stk.Offset},
+				Args: nil,
+			}, true
+		}
+	}
+
+	// Direct stack variable reference (legacy form)
 	if v, ok := addr.(cminor.Evar); ok {
 		if off, found := stackVars[v.Name]; found {
 			return AddressResult{

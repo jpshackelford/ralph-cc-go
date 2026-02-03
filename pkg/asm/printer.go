@@ -3,16 +3,18 @@ package asm
 import (
 	"fmt"
 	"io"
+	"runtime"
 )
 
 // Printer outputs ARM64 assembly in GNU as syntax
 type Printer struct {
-	w io.Writer
+	w        io.Writer
+	isDarwin bool
 }
 
 // NewPrinter creates a new assembly printer
 func NewPrinter(w io.Writer) *Printer {
-	return &Printer{w: w}
+	return &Printer{w: w, isDarwin: runtime.GOOS == "darwin"}
 }
 
 // PrintProgram outputs an entire program
@@ -29,7 +31,11 @@ func (p *Printer) PrintProgram(prog *Program) {
 
 	// Output read-only data section (string literals, etc.)
 	if len(rodataGlobals) > 0 {
-		fmt.Fprintf(p.w, "\t.section\t.rodata\n")
+		if p.isDarwin {
+			fmt.Fprintf(p.w, "\t.section\t__DATA,__const\n")
+		} else {
+			fmt.Fprintf(p.w, "\t.section\t.rodata\n")
+		}
 		for _, g := range rodataGlobals {
 			p.printRodataGlobal(g)
 		}

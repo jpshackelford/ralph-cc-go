@@ -169,12 +169,12 @@ func TestTransformAddrOf(t *testing.T) {
 	// &x at offset 0
 	addrX := env.TransformAddrOf("x")
 	if ec, ok := addrX.(cminor.Econst); ok {
-		if lc, ok := ec.Const.(cminor.Olongconst); ok {
-			if lc.Value != 0 {
-				t.Errorf("&x offset = %d, want 0", lc.Value)
+		if stk, ok := ec.Const.(cminor.Oaddrstack); ok {
+			if stk.Offset != 0 {
+				t.Errorf("&x offset = %d, want 0", stk.Offset)
 			}
 		} else {
-			t.Errorf("expected Olongconst, got %T", ec.Const)
+			t.Errorf("expected Oaddrstack, got %T", ec.Const)
 		}
 	} else {
 		t.Errorf("expected Econst, got %T", addrX)
@@ -183,12 +183,12 @@ func TestTransformAddrOf(t *testing.T) {
 	// &y at offset 8
 	addrY := env.TransformAddrOf("y")
 	if ec, ok := addrY.(cminor.Econst); ok {
-		if lc, ok := ec.Const.(cminor.Olongconst); ok {
-			if lc.Value != 8 {
-				t.Errorf("&y offset = %d, want 8", lc.Value)
+		if stk, ok := ec.Const.(cminor.Oaddrstack); ok {
+			if stk.Offset != 8 {
+				t.Errorf("&y offset = %d, want 8", stk.Offset)
 			}
 		} else {
-			t.Errorf("expected Olongconst, got %T", ec.Const)
+			t.Errorf("expected Oaddrstack, got %T", ec.Const)
 		}
 	} else {
 		t.Errorf("expected Econst, got %T", addrY)
@@ -223,14 +223,14 @@ func TestTransformVarReadStack(t *testing.T) {
 		if el.Chunk != cminor.Mint32 {
 			t.Errorf("Eload chunk = %v, want Mint32", el.Chunk)
 		}
-		// Address should be constant 0 (offset of x)
+		// Address should be Oaddrstack with offset 0
 		if ec, ok := el.Addr.(cminor.Econst); ok {
-			if lc, ok := ec.Const.(cminor.Olongconst); ok {
-				if lc.Value != 0 {
-					t.Errorf("Eload addr offset = %d, want 0", lc.Value)
+			if stk, ok := ec.Const.(cminor.Oaddrstack); ok {
+				if stk.Offset != 0 {
+					t.Errorf("Eload addr offset = %d, want 0", stk.Offset)
 				}
 			} else {
-				t.Errorf("expected Olongconst, got %T", ec.Const)
+				t.Errorf("expected Oaddrstack, got %T", ec.Const)
 			}
 		} else {
 			t.Errorf("expected Econst addr, got %T", el.Addr)
@@ -286,12 +286,14 @@ func TestTransformVarWriteStack(t *testing.T) {
 		if ss.Chunk != cminor.Mint32 {
 			t.Errorf("Sstore chunk = %v, want Mint32", ss.Chunk)
 		}
-		// Address should be constant 0 (offset of x)
+		// Address should be Oaddrstack with offset 0
 		if ec, ok := ss.Addr.(cminor.Econst); ok {
-			if lc, ok := ec.Const.(cminor.Olongconst); ok {
-				if lc.Value != 0 {
-					t.Errorf("Sstore addr offset = %d, want 0", lc.Value)
+			if stk, ok := ec.Const.(cminor.Oaddrstack); ok {
+				if stk.Offset != 0 {
+					t.Errorf("Sstore addr offset = %d, want 0", stk.Offset)
 				}
+			} else {
+				t.Errorf("expected Oaddrstack, got %T", ec.Const)
 			}
 		}
 	} else {

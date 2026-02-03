@@ -222,9 +222,11 @@ b.gt .Ltarget
 
 ### What's Broken (verified)
 
-1. **Pointers**: Address-of (`&x`) and dereferencing (`*p`) have codegen issues
-2. ~~**Logical not**: `!0` returns wrong value~~ **FIXED 2026-02-02**
-3. **String literal assignment**: `char *s = "hello"` has assembly issues on macOS (.rodata section)
+~~1. **Pointers**: Address-of (`&x`) and dereferencing (`*p`) have codegen issues~~ **FIXED 2026-02-02**
+~~2. **Logical not**: `!0` returns wrong value~~ **FIXED 2026-02-02**
+~~3. **String literal assignment**: `char *s = "hello"` has assembly issues on macOS (.rodata section)~~ **FIXED 2026-02-02**
+
+**ALL CATEGORY 2 ISSUES RESOLVED!**
 
 ### Fix Tasks
 
@@ -290,19 +292,19 @@ All Category 1 (core) features now work:
 - ✅ Ternary operator works
 - ✅ Break in loops works
 
-**Remaining issues for Category 2**:
-- ⚠️ Pointers need codegen fixes
-- ~~⚠️ Logical not (`!0`) returns wrong value~~ ✅ FIXED
-- ⚠️ String literals have macOS assembly format issues
+**Category 2 Status**:
+- ✅ Pointers and arrays work
+- ✅ Logical not works
+- ✅ String literals work on macOS (and Linux)
 
 **Estimated effort to reach "fully usable"**: 
-- 2 issues to fix (pointers, string assembly)
-- Low-medium complexity
+- **COMPLETE** - All Category 1 and Category 2 core features work!
 
 ### Next Steps
 
 1. [x] Fix conditional branch codegen - DONE
 2. [x] Fix variable tracking in loops - DONE
-3. [ ] Fix pointer and array codegen
+3. [x] Fix pointer and array codegen - DONE (2026-02-02: Added Oaddrstack constant type, fixed TransformVarRead for local variables)
 4. [x] Fix logical not codegen - DONE (2026-02-02: transformed Onotbool to comparison with 0 in selection phase)
-5. [ ] Fix string literal assembly for macOS
+5. [x] Fix string literal assembly for macOS - DONE (2026-02-02: Changed .section .rodata to __DATA,__const on darwin)
+6. [x] Fix test expectations for platform-agnostic rodata section - DONE (2026-02-02)

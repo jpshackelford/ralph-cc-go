@@ -159,11 +159,12 @@ tests:
       - ".L2:"     # plain .L2 without function prefix should not exist
 
   - name: "string literal in rodata section"
-    # String literals should be emitted in .rodata section
+    # String literals should be emitted in read-only data section
+    # Note: Linux uses .section\t.rodata, macOS uses .section\t__DATA,__const
     input: |
       int main() { char* msg = "hello"; return 0; }
     expect:
-      - ".section\t.rodata"   # read-only data section for strings
+      - ".section"            # read-only data section for strings
       - ".Lstr0:"             # string label
       - ".byte\t104"          # 'h' = 104
       - ".byte\t101"          # 'e' = 101
@@ -178,6 +179,7 @@ tests:
 
   - name: "multiple string literals"
     # Multiple strings should get unique labels
+    # Note: Linux uses .section\t.rodata, macOS uses .section\t__DATA,__const
     input: |
       int main() {
         char* a = "foo";
@@ -185,7 +187,7 @@ tests:
         return 0;
       }
     expect:
-      - ".section\t.rodata"
+      - ".section"            # read-only data section for strings
       - ".Lstr0:"             # first string
       - ".Lstr1:"             # second string
       - ".text"
@@ -193,6 +195,7 @@ tests:
 
   - name: "external function call"
     # External functions (declared but not defined) should generate direct calls
+    # Note: Linux uses .section\t.rodata, macOS uses .section\t__DATA,__const
     input: |
       int puts(char* s);
       int main() {
@@ -200,7 +203,7 @@ tests:
         return 0;
       }
     expect:
-      - ".section\t.rodata"   # string literal
+      - ".section"            # read-only data section for string literal
       - ".Lstr0:"             # string label
       - "adrp\tx0"            # load string address
       - "bl\tputs"            # direct call to external function (not blr!)

@@ -516,7 +516,9 @@ func convertToMacOS(asm string) string {
 			// adrp x0, .Lstr0 -> adrp x0, .Lstr0@PAGE
 			parts := strings.Fields(line)
 			if len(parts) >= 3 && strings.HasPrefix(parts[2], ".Lstr") {
-				line = parts[0] + "\t" + parts[1] + ", " + parts[2] + "@PAGE"
+				// parts[1] already has comma like "x0," so don't add another
+				reg := strings.TrimSuffix(parts[1], ",")
+				line = parts[0] + "\t" + reg + ", " + parts[2] + "@PAGE"
 			}
 		}
 		if strings.Contains(line, "add") && strings.Contains(line, "#0") && strings.Contains(line, ".Lstr") {

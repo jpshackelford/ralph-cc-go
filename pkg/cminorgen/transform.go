@@ -42,8 +42,8 @@ func (t *Transformer) getTempName(id int) string {
 func (t *Transformer) TransformExpr(e csharpminor.Expr) cminor.Expr {
 	switch expr := e.(type) {
 	case csharpminor.Evar:
-		// Global variable reference
-		return cminor.Evar{Name: expr.Name}
+		// Could be a global or a local variable
+		return t.varEnv.TransformVarRead(expr.Name)
 
 	case csharpminor.Etempvar:
 		// Temporary → named variable in Cminor
