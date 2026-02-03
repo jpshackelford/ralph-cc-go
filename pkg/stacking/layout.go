@@ -98,10 +98,14 @@ func (l *FrameLayout) LocalSlotOffset(slotOffset int64) int64 {
 	return l.LocalOffset + slotOffset
 }
 
-// OutgoingSlotOffset returns the concrete offset from SP for an outgoing arg slot
+// OutgoingSlotOffset returns the concrete offset from FP for an outgoing arg slot
+// Outgoing args are at the bottom of the frame near SP. Since FP = SP + (TotalSize - 16),
+// the outgoing area is at negative offsets from FP.
 func (l *FrameLayout) OutgoingSlotOffset(slotOffset int64) int64 {
-	// Outgoing args are relative to SP, at the bottom of frame
-	return slotOffset
+	// FP = SP + (TotalSize - 16), so SP = FP - (TotalSize - 16)
+	// Outgoing slot N is at SP + N = FP - (TotalSize - 16) + N
+	fpOffset := l.TotalSize - 16 // distance from SP to FP
+	return -fpOffset + slotOffset
 }
 
 // IncomingSlotOffset returns the concrete offset from FP for an incoming arg

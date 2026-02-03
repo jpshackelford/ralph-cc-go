@@ -180,17 +180,27 @@ func (ctx *genContext) generatePrologue() []asm.Instruction {
 		return nil
 	}
 	
-	// ARM64 prologue:
-	// stp x29, x30, [sp, #-framesize]!   ; save FP and LR, pre-decrement SP
-	// mov x29, sp                         ; set FP
+	// ARM64 prologue matching Mach IR conventions:
+	// sub sp, sp, #framesize           ; allocate stack frame
+	// stp x29, x30, [sp, #fpOffset]    ; save FP and LR at top of frame
+	// add x29, sp, #fpOffset           ; set FP to point at saved FP/LR
+	//
+	// This layout allows:
+	// - [FP + 0] = saved old FP
+	// - [FP + 8] = saved LR
+	// - [FP + 16...] = callee-saved regs, locals
+	// - [SP + 0...] = outgoing argument area (below FP)
 	
 	frameSize := ctx.fn.Stacksize
+	fpOffset := frameSize - 16 // FP/LR saved at top of frame
 	
 	return []asm.Instruction{
-		// stp x29, x30, [sp, #-framesize]!
-		asm.STPpre{Rt1: asm.X29, Rt2: asm.X30, Rn: asm.SP, Ofs: -frameSize, Is64: true},
-		// mov x29, sp
-		asm.MOV{Rd: asm.X29, Rm: asm.SP, Is64: true},
+		// sub sp, sp, #framesize
+		asm.SUBi{Rd: asm.SP, Rn: asm.SP, Imm: frameSize, Is64: true},
+		// stp x29, x30, [sp, #fpOffset]
+		asm.STP{Rt1: asm.X29, Rt2: asm.X30, Rn: asm.SP, Ofs: fpOffset, Is64: true},
+		// add x29, sp, #fpOffset
+		asm.ADDi{Rd: asm.X29, Rn: asm.SP, Imm: fpOffset, Is64: true},
 	}
 }
 
@@ -200,15 +210,19 @@ func (ctx *genContext) generateEpilogue() []asm.Instruction {
 		return []asm.Instruction{asm.RET{}}
 	}
 	
-	// ARM64 epilogue:
-	// ldp x29, x30, [sp], #framesize   ; restore FP and LR, post-increment SP
+	// ARM64 epilogue matching Mach IR conventions:
+	// ldp x29, x30, [sp, #fpOffset]    ; restore FP and LR
+	// add sp, sp, #framesize           ; deallocate frame
 	// ret
 	
 	frameSize := ctx.fn.Stacksize
+	fpOffset := frameSize - 16 // FP/LR saved at top of frame
 	
 	return []asm.Instruction{
-		// ldp x29, x30, [sp], #framesize
-		asm.LDPpost{Rt1: asm.X29, Rt2: asm.X30, Rn: asm.SP, Ofs: frameSize, Is64: true},
+		// ldp x29, x30, [sp, #fpOffset]
+		asm.LDP{Rt1: asm.X29, Rt2: asm.X30, Rn: asm.SP, Ofs: fpOffset, Is64: true},
+		// add sp, sp, #framesize
+		asm.ADDi{Rd: asm.SP, Rn: asm.SP, Imm: frameSize, Is64: true},
 		// ret
 		asm.RET{},
 	}

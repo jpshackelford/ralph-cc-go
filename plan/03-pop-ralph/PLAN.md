@@ -1,3 +1,4 @@
 [x] `make test` should be not verbose, should be split so the slow ones are in `make test-slow`, and should pass (`make check` will do all). Progress: `progress/TEST_MAKEFILE.md`
 
 [x] Study the current test and describe current testing strategy in `docs/TESTING.md`. Include a critique section to point out opportunities. Progress: `progress/TESTING_DOCS.md`
+[x] Debug segfault in `testdata/example-c/fib_fn.c`. When you find the issue, compare that component to the equivelant in compcert, as well as evaluate the tests. Fix and prevent. Progress: `progress/FIB_SEGFAULT.md`

@@ -169,8 +169,12 @@ func TestTranslateSlotOffset(t *testing.T) {
 	}
 
 	// Test outgoing slot translation
+	// With frame layout: FP = SP + (TotalSize - 16)
+	// Outgoing slot N is at SP + N = FP - (TotalSize - 16) + N
+	// For TotalSize=48 and N=8: FP offset = -(48-16) + 8 = -24
 	outgoingOfs := trans.TranslateSlotOffset(linear.SlotOutgoing, 8)
-	if outgoingOfs != 8 {
-		t.Errorf("TranslateSlotOffset(Outgoing, 8) = %d, want 8", outgoingOfs)
+	expectedOutgoing := -(layout.TotalSize - 16) + 8
+	if outgoingOfs != expectedOutgoing {
+		t.Errorf("TranslateSlotOffset(Outgoing, 8) = %d, want %d", outgoingOfs, expectedOutgoing)
 	}
 }
