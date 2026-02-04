@@ -2,10 +2,11 @@ Execute these steps.
 
 1. From the unfinished tasks in `plan/03-pop-ralph/PLAN.md`, choose a logical one to do next.
 2. If a progress file is specified in the task, study it. Otherwise create one in `plan/03-pop-ralph/progress/` and reference in the plan file task.
-2. Do ONLY that task, and related automated tests.
-3. Verify (including `make check`).
-4. If complete: update PLAN to mark complete, commit.
-5. If not complete: update progress file and bail.
+3. Any pending git changes are from a previous attempt. your choice to finish or reset.
+4. Do ONLY that task, and related automated tests.
+5. Verify (including `make check`).
+6. If complete: update PLAN to mark complete, commit.
+7. If not complete: update progress file and bail.
 
 ## Environments
 
