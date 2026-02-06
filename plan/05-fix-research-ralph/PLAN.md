@@ -13,7 +13,7 @@
 - [x] fail_compile_130805769 - stack slot spill handling incomplete
 
 ### Runtime Crashes
-- [ ] crash_55976753
+- [x] crash_55976753 - callee-save offset sign error (same as COMMON_CAUSES)
 - [ ] crash_785411410
 - [ ] crash_3051214201
 - [ ] crash_2690612573
