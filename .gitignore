@@ -20,3 +20,4 @@ out/
 # Object files
 *.o
 csmith-reports/
+platform.info
