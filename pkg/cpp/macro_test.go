@@ -238,13 +238,22 @@ func TestRedefinitionDifferent(t *testing.T) {
 		t.Fatalf("First DefineObject failed: %v", err)
 	}
 
-	// Redefine with different definition - should error
+	// Redefine with different definition - now a warning instead of error
+	// (for compatibility with system headers that often redefine macros)
 	replacement2 := []Token{
 		{Type: PP_NUMBER, Text: "100", Loc: loc},
 	}
 	err = mt.DefineObject("FOO", replacement2, loc)
-	if err == nil {
-		t.Error("Different redefinition should fail")
+	if err != nil {
+		t.Errorf("Different redefinition should warn but succeed, got error: %v", err)
+	}
+	// Verify the macro was updated to the new definition
+	m := mt.Lookup("FOO")
+	if m == nil {
+		t.Fatal("FOO macro should exist after redefinition")
+	}
+	if len(m.Replacement) != 1 || m.Replacement[0].Text != "100" {
+		t.Error("FOO should have been updated to new definition")
 	}
 }
 

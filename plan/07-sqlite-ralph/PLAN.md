@@ -13,7 +13,7 @@ Each milestone has verification command to know when complete.
 
 ---
 
-## Milestone 1: Preprocessing
+## Milestone 1: Preprocessing ✅ COMPLETE
 
 **Verification**: `./bin/ralph-cc -E checkouts/sqlite-amalgamation-3470200/sqlite3.c > /dev/null 2>&1 && echo PASS`
 
@@ -21,13 +21,15 @@ Each milestone has verification command to know when complete.
 
 [x] 1.1 Fix preprocessor expression parsing - Current error: `#if: expected ')'` in system headers. The `#if` expression parser needs to handle complex expressions from macOS SDK headers. Progress: `progress/PREPROC_EXPR.md`
 
-[ ] 1.2 Handle `__has_feature`, `__has_extension`, `__has_builtin` - These clang-specific macros appear in system headers. Need to define them or handle specially in cpp. Progress: `progress/HAS_FEATURE.md`
+[x] 1.6 Fix multi-line macro arguments - Macro invocations spanning multiple lines failed with "unterminated macro argument list". Fixed by tracking paren depth in preprocessor. Also changed macro redefinition from error to warning for system header compatibility. Progress: `progress/MULTILINE_MACRO.md`
 
-[ ] 1.3 Handle `__attribute__` - System headers use `__attribute__((visibility(...)))` etc. Parser needs to skip or handle these. Progress: `progress/ATTRIBUTES.md`
+[~] 1.2 Handle `__has_feature`, `__has_extension`, `__has_builtin` - These clang-specific macros appear in system headers. **SKIPPED** - already handled, not blocking.
 
-[ ] 1.4 Handle `_Pragma` operator - Some headers use this for pragma handling. Progress: `progress/PRAGMA.md`
+[~] 1.3 Handle `__attribute__` - System headers use `__attribute__((visibility(...)))` etc. **SKIPPED** - already handled, not blocking.
 
-[ ] 1.5 Handle `typeof` / `__typeof__` - Used in some GNU extensions. Progress: `progress/TYPEOF.md`
+[~] 1.4 Handle `_Pragma` operator - Some headers use this for pragma handling. **SKIPPED** - not blocking.
+
+[~] 1.5 Handle `typeof` / `__typeof__` - Used in some GNU extensions. **SKIPPED** - not blocking.
 
 ---
 

@@ -661,3 +661,48 @@ fail
 		t.Errorf("Expected 'pass' but got:\n%s", result)
 	}
 }
+
+func TestPreprocessor_MultiLineMacroArgs(t *testing.T) {
+	// Test that macro arguments can span multiple lines
+	input := `#define CHECK(x) ((x) ? 1 : 0)
+int result = CHECK(condition1
+                   && condition2
+                   && condition3);
+`
+	pp := NewPreprocessor(PreprocessorOptions{})
+	result, err := pp.PreprocessString(input, "test.c")
+	if err != nil {
+		t.Fatalf("Multi-line macro args should work: %v", err)
+	}
+
+	// Should expand without error and include the condition
+	if !strings.Contains(result, "condition1") {
+		t.Errorf("Expected 'condition1' in output, got: %s", result)
+	}
+	if !strings.Contains(result, "condition3") {
+		t.Errorf("Expected 'condition3' in output, got: %s", result)
+	}
+	// Should have the macro expansion
+	if !strings.Contains(result, "? 1 : 0") {
+		t.Errorf("Expected macro expansion '? 1 : 0' in output, got: %s", result)
+	}
+}
+
+func TestPreprocessor_NestedMultiLineMacroArgs(t *testing.T) {
+	// Test nested parentheses in multi-line macro arguments
+	input := `#define ASSERT(x) if (!(x)) { fail(); }
+ASSERT(foo(bar(1,
+              2),
+           baz(3)));
+`
+	pp := NewPreprocessor(PreprocessorOptions{})
+	result, err := pp.PreprocessString(input, "test.c")
+	if err != nil {
+		t.Fatalf("Nested multi-line macro args should work: %v", err)
+	}
+
+	// Should contain the function calls
+	if !strings.Contains(result, "foo(bar(1,") || !strings.Contains(result, "baz(3)") {
+		t.Errorf("Expected function calls in output, got: %s", result)
+	}
+}

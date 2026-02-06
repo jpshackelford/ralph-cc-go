@@ -3,6 +3,7 @@ package cpp
 
 import (
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -475,13 +476,14 @@ func (mt *MacroTable) initBuiltins() {
 }
 
 // Define adds or replaces a macro in the table.
-// Returns an error if the macro is being redefined with a different definition.
+// Warns if the macro is being redefined with a different definition (per C standard).
 func (mt *MacroTable) Define(m *Macro) error {
 	existing, ok := mt.macros[m.Name]
 	if ok && existing.Kind != MacroBuiltin {
 		// Check if redefinition is identical (per C standard)
 		if !mt.macrosEqual(existing, m) {
-			return fmt.Errorf("macro '%s' redefined with different definition", m.Name)
+			// Warn but don't fail - system headers often redefine macros
+			fmt.Fprintf(os.Stderr, "warning: macro '%s' redefined with different definition\n", m.Name)
 		}
 	}
 	mt.macros[m.Name] = m

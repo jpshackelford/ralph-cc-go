@@ -107,6 +107,7 @@ func (p *Preprocessor) preprocessContent(source, filename string, isTopLevel boo
 	var output strings.Builder
 	var lineTokens []Token
 	currentLine := 1
+	parenDepth := 0 // Track parenthesis depth for multi-line macro args
 	
 	if p.opts.LineMarkers && isTopLevel {
 		output.WriteString(fmt.Sprintf("# 1 \"%s\"\n", filename))
@@ -127,8 +128,27 @@ func (p *Preprocessor) preprocessContent(source, filename string, isTopLevel boo
 			break
 		}
 		
+		// Track parenthesis depth for multi-line macro arguments
+		if tok.Type == PP_PUNCTUATOR {
+			switch tok.Text {
+			case "(":
+				parenDepth++
+			case ")":
+				if parenDepth > 0 {
+					parenDepth--
+				}
+			}
+		}
+		
 		if tok.Type == PP_NEWLINE {
 			lineTokens = append(lineTokens, tok)
+			
+			// If we have unbalanced parentheses, continue collecting tokens
+			// (for multi-line macro arguments)
+			if parenDepth > 0 && !p.isDirectiveLine(lineTokens) {
+				continue
+			}
+			
 			result, err := p.processLine(lineTokens, filename)
 			if err != nil {
 				return "", fmt.Errorf("%s:%d: %w", filename, currentLine, err)
@@ -143,6 +163,17 @@ func (p *Preprocessor) preprocessContent(source, filename string, isTopLevel boo
 	}
 	
 	return output.String(), nil
+}
+
+// isDirectiveLine checks if tokens represent a preprocessor directive line.
+func (p *Preprocessor) isDirectiveLine(tokens []Token) bool {
+	for _, tok := range tokens {
+		if tok.Type == PP_WHITESPACE || tok.Type == PP_NEWLINE {
+			continue
+		}
+		return tok.Type == PP_HASH
+	}
+	return false
 }
 
 // processLine processes a single line of tokens.
