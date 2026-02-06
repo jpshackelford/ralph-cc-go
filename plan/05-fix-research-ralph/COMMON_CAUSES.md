@@ -52,6 +52,22 @@
 
 ---
 
+## Operator Semantics
+
+### Logical AND/OR Missing Short-Circuit (CONFIRMED: mismatch_2487828851)
+
+**Symptom**: Boolean expressions with `&&` or `||` produce wrong values. E.g., `(-8 && -8)` returns `-8` instead of `1`.
+
+**Cause**: `cabsToBinaryOp()` has placeholder code that maps logical operators (`OpAnd`/`OpOr`) to bitwise operators (`Oand`/`Oor`).
+
+**Location**: `pkg/simplexpr/transform.go` - `transformBinary()` and `cabsToBinaryOp()`
+
+**Fix**: Add `case cabs.OpAnd:` and `case cabs.OpOr:` in `transformBinary()` that convert to short-circuit conditional evaluation:
+- `a && b` → `if (a) { if (b) 1 else 0 } else 0`
+- `a || b` → `if (a) 1 else { if (b) 1 else 0 }`
+
+---
+
 ## Categories to Watch
 
 1. **Stack layout** - offset calculations, frame pointer usage

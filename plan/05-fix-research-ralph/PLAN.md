@@ -8,6 +8,7 @@
 
 ### Output Mismatches (semantic bugs)
 - [x] mismatch_263236830 - global init with Paren expression lost
+- [x] mismatch_2487828851 - logical AND/OR (&&/||) compiled as bitwise operators
 
 ### Compilation Failures
 - [x] fail_compile_130805769 - stack slot spill handling incomplete
