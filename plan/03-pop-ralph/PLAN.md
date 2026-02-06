@@ -7,6 +7,6 @@
 
 [x] Consider that trying out hello.c, fib.c, and fib_fn.c all revealed problems. Predict what the next 5 programs will be to introduce problems, still staying within simple c, put them in `testdata/example-c`, diagnose and fix. Progress: `progress/NEXT_FIVE.md`
 
-[ ] Based on `plan/04-learn/ANALYSIS.md`, update AGENTS.md and supporting docs, and make other changes that seem appropriate.
+[x] Based on `plan/04-learn/ANALYSIS.md`, update AGENTS.md and supporting docs, and make other changes that seem appropriate. Progress: `progress/AGENTS_DOCS_UPDATE.md`
 
 [x] csmith is installed. Learn how to use it and set up headless automation to use it to find bugs in our compiler. It should produce some sort of report we can study. Progress: `progress/CSMITH_FUZZER.md`
