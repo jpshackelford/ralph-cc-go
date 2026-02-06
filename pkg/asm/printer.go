@@ -68,12 +68,21 @@ func log2(n int) int {
 	return r
 }
 
+// symbolName returns the symbol name with platform-appropriate prefix
+func (p *Printer) symbolName(name string) string {
+	if p.isDarwin {
+		return "_" + name
+	}
+	return name
+}
+
 func (p *Printer) printGlobal(g GlobVar) {
-	fmt.Fprintf(p.w, "\t.global\t%s\n", g.Name)
+	name := p.symbolName(g.Name)
+	fmt.Fprintf(p.w, "\t.global\t%s\n", name)
 	if g.Align > 1 {
 		fmt.Fprintf(p.w, "\t.p2align\t%d\n", log2(g.Align))
 	}
-	fmt.Fprintf(p.w, "%s:\n", g.Name)
+	fmt.Fprintf(p.w, "%s:\n", name)
 	if len(g.Init) > 0 {
 		for _, b := range g.Init {
 			fmt.Fprintf(p.w, "\t.byte\t%d\n", b)
@@ -86,14 +95,19 @@ func (p *Printer) printGlobal(g GlobVar) {
 // printRodataGlobal outputs a read-only global (e.g., string literal)
 // Local labels (.L*) are not declared as .global
 func (p *Printer) printRodataGlobal(g GlobVar) {
-	// Local labels start with .L - don't make them global
-	if len(g.Name) < 2 || g.Name[0] != '.' || g.Name[1] != 'L' {
-		fmt.Fprintf(p.w, "\t.global\t%s\n", g.Name)
+	// Local labels start with .L - don't make them global or prefix
+	isLocal := len(g.Name) >= 2 && g.Name[0] == '.' && g.Name[1] == 'L'
+	var name string
+	if isLocal {
+		name = g.Name
+	} else {
+		name = p.symbolName(g.Name)
+		fmt.Fprintf(p.w, "\t.global\t%s\n", name)
 	}
 	if g.Align > 1 {
 		fmt.Fprintf(p.w, "\t.p2align\t%d\n", log2(g.Align))
 	}
-	fmt.Fprintf(p.w, "%s:\n", g.Name)
+	fmt.Fprintf(p.w, "%s:\n", name)
 	if len(g.Init) > 0 {
 		// For string data, use .ascii directive (more compact)
 		p.printStringData(g.Init)
@@ -110,16 +124,21 @@ func (p *Printer) printStringData(data []byte) {
 }
 
 func (p *Printer) printFunction(f Function) {
+	name := p.symbolName(f.Name)
 	fmt.Fprintf(p.w, "\t.align\t2\n")
-	fmt.Fprintf(p.w, "\t.global\t%s\n", f.Name)
-	fmt.Fprintf(p.w, "\t.type\t%s, %%function\n", f.Name)
-	fmt.Fprintf(p.w, "%s:\n", f.Name)
+	fmt.Fprintf(p.w, "\t.global\t%s\n", name)
+	if !p.isDarwin {
+		fmt.Fprintf(p.w, "\t.type\t%s, %%function\n", name)
+	}
+	fmt.Fprintf(p.w, "%s:\n", name)
 
 	for _, inst := range f.Code {
 		p.printInstruction(inst)
 	}
 
-	fmt.Fprintf(p.w, "\t.size\t%s, .-%s\n", f.Name, f.Name)
+	if !p.isDarwin {
+		fmt.Fprintf(p.w, "\t.size\t%s, .-%s\n", name, name)
+	}
 	fmt.Fprintf(p.w, "\n")
 }
 
@@ -340,9 +359,17 @@ func (p *Printer) printInstruction(inst Instruction) {
 
 	// Branches
 	case B:
-		fmt.Fprintf(p.w, "\tb\t%s\n", i.Target)
+		if p.isDarwin && i.IsSymbol {
+			fmt.Fprintf(p.w, "\tb\t_%s\n", i.Target)
+		} else {
+			fmt.Fprintf(p.w, "\tb\t%s\n", i.Target)
+		}
 	case BL:
-		fmt.Fprintf(p.w, "\tbl\t%s\n", i.Target)
+		if p.isDarwin && i.IsSymbol {
+			fmt.Fprintf(p.w, "\tbl\t_%s\n", i.Target)
+		} else {
+			fmt.Fprintf(p.w, "\tbl\t%s\n", i.Target)
+		}
 	case BR:
 		fmt.Fprintf(p.w, "\tbr\t%s\n", regName64(i.Rn))
 	case BLR:
@@ -402,7 +429,22 @@ func (p *Printer) printInstruction(inst Instruction) {
 	case ADR:
 		fmt.Fprintf(p.w, "\tadr\t%s, %s\n", regName64(i.Rd), i.Target)
 	case ADRP:
-		fmt.Fprintf(p.w, "\tadrp\t%s, %s\n", regName64(i.Rd), i.Target)
+		if p.isDarwin && i.IsSymbol {
+			fmt.Fprintf(p.w, "\tadrp\t%s, _%s@PAGE\n", regName64(i.Rd), i.Target)
+		} else {
+			fmt.Fprintf(p.w, "\tadrp\t%s, %s\n", regName64(i.Rd), i.Target)
+		}
+	case ADDpageoff:
+		if p.isDarwin {
+			if i.Offset == 0 {
+				fmt.Fprintf(p.w, "\tadd\t%s, %s, _%s@PAGEOFF\n", regName64(i.Rd), regName64(i.Rn), i.Symbol)
+			} else {
+				// Symbol + offset: need to add both
+				fmt.Fprintf(p.w, "\tadd\t%s, %s, _%s@PAGEOFF+%d\n", regName64(i.Rd), regName64(i.Rn), i.Symbol, i.Offset)
+			}
+		} else {
+			fmt.Fprintf(p.w, "\tadd\t%s, %s, #%d\n", regName64(i.Rd), regName64(i.Rn), i.Offset)
+		}
 
 	// Floating point operations
 	case FADD:

@@ -5,11 +5,39 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
 )
+
+// transformExpectedForDarwin transforms expected assembly patterns for Darwin/macOS
+// On Darwin, symbols get underscore prefix and bl/b calls to symbols also get prefix
+func transformExpectedForDarwin(exp string) string {
+	if runtime.GOOS != "darwin" {
+		return exp
+	}
+
+	// Transform ".global\tfoo" -> ".global\t_foo"
+	globalRE := regexp.MustCompile(`\.global\t([a-zA-Z_][a-zA-Z0-9_]*)`)
+	exp = globalRE.ReplaceAllString(exp, `.global	_$1`)
+
+	// Transform "foo:" -> "_foo:" (but not local labels like .L_foo)
+	labelRE := regexp.MustCompile(`^([a-zA-Z_][a-zA-Z0-9_]*):`)
+	exp = labelRE.ReplaceAllString(exp, `_$1:`)
+
+	// Transform "bl\tfoo" -> "bl\t_foo"
+	blRE := regexp.MustCompile(`bl\t([a-zA-Z_][a-zA-Z0-9_]*)`)
+	exp = blRE.ReplaceAllString(exp, `bl	_$1`)
+
+	// Transform "b\tfoo" -> "b\t_foo" (but not local labels)
+	bRE := regexp.MustCompile(`\bb\t([a-zA-Z_][a-zA-Z0-9_]*)`)
+	exp = bRE.ReplaceAllString(exp, `b	_$1`)
+
+	return exp
+}
 
 // IntegrationTestSpec represents a single integration test case
 type IntegrationTestSpec struct {
@@ -278,6 +306,7 @@ func TestE2EAsmYAML(t *testing.T) {
 			output := out.String()
 			// Check that all expected strings appear in output
 			for _, exp := range tc.Expect {
+				exp = transformExpectedForDarwin(exp)
 				if !strings.Contains(output, exp) {
 					t.Errorf("expected output to contain %q\nGot:\n%s", exp, output)
 				}
@@ -287,6 +316,7 @@ func TestE2EAsmYAML(t *testing.T) {
 			if len(tc.ExpectOrder) > 0 {
 				lastIdx := -1
 				for _, exp := range tc.ExpectOrder {
+					exp = transformExpectedForDarwin(exp)
 					idx := strings.Index(output, exp)
 					if idx == -1 {
 						t.Errorf("expected output to contain %q for order check\nGot:\n%s", exp, output)
@@ -299,6 +329,7 @@ func TestE2EAsmYAML(t *testing.T) {
 
 			// Check that strings appear exactly once
 			for _, exp := range tc.ExpectUnique {
+				exp = transformExpectedForDarwin(exp)
 				count := strings.Count(output, exp)
 				if count != 1 {
 					t.Errorf("expected %q to appear exactly once, found %d times\nGot:\n%s", exp, count, output)
@@ -307,6 +338,7 @@ func TestE2EAsmYAML(t *testing.T) {
 
 			// Check that strings do NOT appear
 			for _, exp := range tc.ExpectNot {
+				exp = transformExpectedForDarwin(exp)
 				if strings.Contains(output, exp) {
 					t.Errorf("expected output NOT to contain %q\nGot:\n%s", exp, output)
 				}

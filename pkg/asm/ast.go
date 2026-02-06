@@ -388,12 +388,14 @@ type FSTRd struct {
 
 // B - Unconditional branch
 type B struct {
-	Target Label
+	Target   Label
+	IsSymbol bool // true if Target is a function symbol (needs _ prefix on Darwin)
 }
 
 // BL - Branch with link (call)
 type BL struct {
-	Target Label
+	Target   Label
+	IsSymbol bool // true if Target is a function symbol (needs _ prefix on Darwin)
 }
 
 // BR - Branch to register
@@ -563,8 +565,19 @@ type ADR struct {
 
 // ADRP - Compute PC-relative page address
 type ADRP struct {
+	Rd       MReg
+	Target   Label
+	IsSymbol bool // true if Target is a global symbol (needs @PAGE on Darwin)
+}
+
+// ADDpageoff - Add page offset for a symbol (Darwin-specific addressing)
+// On Darwin: add Rd, Rn, symbol@PAGEOFF
+// On ELF: add Rd, Rn, #offset
+type ADDpageoff struct {
 	Rd     MReg
-	Target Label
+	Rn     MReg
+	Symbol Label
+	Offset int64
 }
 
 // --- Floating Point Operations ---
@@ -782,9 +795,10 @@ func (MOVi) implInstruction()     {}
 func (MOVZ) implInstruction()     {}
 func (MOVK) implInstruction()     {}
 func (MOVN) implInstruction()     {}
-func (ADR) implInstruction()      {}
-func (ADRP) implInstruction()     {}
-func (FADD) implInstruction()     {}
+func (ADR) implInstruction()        {}
+func (ADRP) implInstruction()       {}
+func (ADDpageoff) implInstruction() {}
+func (FADD) implInstruction()       {}
 func (FSUB) implInstruction()     {}
 func (FMUL) implInstruction()     {}
 func (FDIV) implInstruction()     {}

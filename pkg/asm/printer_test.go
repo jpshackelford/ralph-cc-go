@@ -231,20 +231,30 @@ func TestPrintFunction(t *testing.T) {
 
 	output := buf.String()
 
-	if !strings.Contains(output, ".global\tadd_one") {
-		t.Error("Missing .global directive")
-	}
-	if !strings.Contains(output, "add_one:") {
-		t.Error("Missing function label")
+	// Platform-aware checks (Darwin adds underscore prefix and omits .size)
+	if p.isDarwin {
+		if !strings.Contains(output, ".global\t_add_one") {
+			t.Error("Missing .global directive (Darwin)")
+		}
+		if !strings.Contains(output, "_add_one:") {
+			t.Error("Missing function label (Darwin)")
+		}
+	} else {
+		if !strings.Contains(output, ".global\tadd_one") {
+			t.Error("Missing .global directive")
+		}
+		if !strings.Contains(output, "add_one:") {
+			t.Error("Missing function label")
+		}
+		if !strings.Contains(output, ".size\tadd_one") {
+			t.Error("Missing .size directive")
+		}
 	}
 	if !strings.Contains(output, "add\tx0, x0, #1") {
 		t.Error("Missing ADD instruction")
 	}
 	if !strings.Contains(output, "ret") {
 		t.Error("Missing RET instruction")
-	}
-	if !strings.Contains(output, ".size\tadd_one") {
-		t.Error("Missing .size directive")
 	}
 }
 
@@ -273,14 +283,24 @@ func TestPrintProgram(t *testing.T) {
 	if !strings.Contains(output, ".data") {
 		t.Error("Missing .data section")
 	}
-	if !strings.Contains(output, ".global\tglobal_var") {
-		t.Error("Missing global variable directive")
-	}
 	if !strings.Contains(output, ".text") {
 		t.Error("Missing .text section")
 	}
-	if !strings.Contains(output, ".global\tmain") {
-		t.Error("Missing main function directive")
+	// Platform-aware checks (Darwin adds underscore prefix)
+	if p.isDarwin {
+		if !strings.Contains(output, ".global\t_global_var") {
+			t.Error("Missing global variable directive (Darwin)")
+		}
+		if !strings.Contains(output, ".global\t_main") {
+			t.Error("Missing main function directive (Darwin)")
+		}
+	} else {
+		if !strings.Contains(output, ".global\tglobal_var") {
+			t.Error("Missing global variable directive")
+		}
+		if !strings.Contains(output, ".global\tmain") {
+			t.Error("Missing main function directive")
+		}
 	}
 }
 

@@ -347,8 +347,8 @@ func translateOperation(op mach.Operation, args []mach.MReg, dest mach.MReg) []a
 	case rtl.Oaddrsymbol:
 		// Load address of symbol
 		return []asm.Instruction{
-			asm.ADRP{Rd: dest, Target: asm.Label(o.Symbol)},
-			asm.ADDi{Rd: dest, Rn: dest, Imm: o.Offset, Is64: true}, // ADD for low bits
+			asm.ADRP{Rd: dest, Target: asm.Label(o.Symbol), IsSymbol: true},
+			asm.ADDpageoff{Rd: dest, Rn: dest, Symbol: asm.Label(o.Symbol), Offset: o.Offset},
 		}
 	case rtl.Oaddrstack:
 		// Compute stack address
@@ -706,7 +706,7 @@ func (ctx *genContext) translateStore(i mach.Mstore) []asm.Instruction {
 func (ctx *genContext) translateCall(i mach.Mcall) []asm.Instruction {
 	switch fn := i.Fn.(type) {
 	case mach.FunSymbol:
-		return []asm.Instruction{asm.BL{Target: asm.Label(fn.Name)}}
+		return []asm.Instruction{asm.BL{Target: asm.Label(fn.Name), IsSymbol: true}}
 	case mach.FunReg:
 		return []asm.Instruction{asm.BLR{Rn: fn.Reg}}
 	default:
@@ -718,7 +718,7 @@ func (ctx *genContext) translateCall(i mach.Mcall) []asm.Instruction {
 func (ctx *genContext) translateTailcall(i mach.Mtailcall) []asm.Instruction {
 	switch fn := i.Fn.(type) {
 	case mach.FunSymbol:
-		return []asm.Instruction{asm.B{Target: asm.Label(fn.Name)}}
+		return []asm.Instruction{asm.B{Target: asm.Label(fn.Name), IsSymbol: true}}
 	case mach.FunReg:
 		return []asm.Instruction{asm.BR{Rn: fn.Reg}}
 	default:
@@ -729,7 +729,7 @@ func (ctx *genContext) translateTailcall(i mach.Mtailcall) []asm.Instruction {
 // translateBuiltin generates builtin function calls
 func (ctx *genContext) translateBuiltin(i mach.Mbuiltin) []asm.Instruction {
 	// For now, just generate a BL to the builtin name
-	return []asm.Instruction{asm.BL{Target: asm.Label(i.Builtin)}}
+	return []asm.Instruction{asm.BL{Target: asm.Label(i.Builtin), IsSymbol: true}}
 }
 
 // translateCond generates compare instruction followed by conditional branch

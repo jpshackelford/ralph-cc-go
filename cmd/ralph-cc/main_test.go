@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -637,9 +638,13 @@ func TestDAsmFlag(t *testing.T) {
 	}
 
 	output := out.String()
-	// Check that it contains assembly function output
-	if !strings.Contains(output, ".global\tadd") {
-		t.Errorf("expected output to contain '.global\\tadd', got %q", output)
+	// Check that it contains assembly function output (Darwin adds underscore prefix)
+	expectedGlobal := ".global\tadd"
+	if runtime.GOOS == "darwin" {
+		expectedGlobal = ".global\t_add"
+	}
+	if !strings.Contains(output, expectedGlobal) {
+		t.Errorf("expected output to contain %q, got %q", expectedGlobal, output)
 	}
 	// Check for assembly-specific output (ret instruction)
 	if !strings.Contains(output, "ret") {
