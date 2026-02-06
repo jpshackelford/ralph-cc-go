@@ -56,6 +56,12 @@ Example:
 
 ## Bug Patterns
 
+### Assembly format on macOS (FIXED)
+**Symptom**: Assembly/linking errors with `@PAGE@PAGE` or double underscores on symbols
+**Cause**: `scripts/run.sh` was applying macOS conversion to already-macOS-formatted assembly
+**Fix**: ralph-cc now outputs macOS-compatible assembly directly. `run.sh` was fixed to skip conversion.
+**Note**: csmith-fuzz.sh already used assembly directly and was not affected.
+
 ### Wrong memory access size for globals
 **Symptom**: Global variable stores use `str` (32-bit) instead of `strb` (8-bit) or `strh` (16-bit)
 **Cause**: Global variable types not registered in simplexpr type environment
