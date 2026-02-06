@@ -46,7 +46,7 @@ func TranslateProgram(prog *cabs.Program) *clight.Program {
 		}
 	}
 
-	// Second pass: collect global variable types first
+	// Second pass: collect global variable types and function types first
 	globalTypes := make(map[string]ctypes.Type)
 	for _, def := range prog.Definitions {
 		if d, ok := def.(cabs.VarDef); ok {
@@ -65,6 +65,18 @@ func TranslateProgram(prog *cabs.Program) *clight.Program {
 				Type: typ,
 				Init: init,
 			})
+		}
+		// Also collect function types for proper call argument conversion
+		if d, ok := def.(cabs.FunDef); ok {
+			var paramTypes []ctypes.Type
+			for _, p := range d.Params {
+				paramTypes = append(paramTypes, TypeFromString(p.TypeSpec))
+			}
+			retType := TypeFromString(d.ReturnType)
+			globalTypes[d.Name] = ctypes.Tfunction{
+				Params: paramTypes,
+				Return: retType,
+			}
 		}
 	}
 

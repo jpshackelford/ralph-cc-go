@@ -570,12 +570,28 @@ func (t *Transformer) transformCall(expr cabs.Call) TransformResult {
 	var stmts []clight.Stmt
 	stmts = append(stmts, funcResult.Stmts...)
 
+	// Get function type to determine parameter types for argument conversion
+	var paramTypes []ctypes.Type
+	if fn, ok := funcResult.Expr.ExprType().(ctypes.Tfunction); ok {
+		paramTypes = fn.Params
+	}
+
 	// Transform all arguments (left-to-right evaluation)
 	var args []clight.Expr
-	for _, arg := range expr.Args {
+	for i, arg := range expr.Args {
 		argResult := t.TransformExpr(arg)
 		stmts = append(stmts, argResult.Stmts...)
-		args = append(args, argResult.Expr)
+
+		argExpr := argResult.Expr
+		// Insert cast to parameter type if needed and we have parameter type info
+		if i < len(paramTypes) {
+			paramType := paramTypes[i]
+			argType := argExpr.ExprType()
+			if !ctypes.Equal(argType, paramType) {
+				argExpr = clight.Ecast{Arg: argExpr, Typ: paramType}
+			}
+		}
+		args = append(args, argExpr)
 	}
 
 	// Determine return type (simplified - assume int if unknown)
