@@ -10,7 +10,7 @@
 - [x] mismatch_263236830 - global init with Paren expression lost
 
 ### Compilation Failures
-- [ ] fail_compile_130805769
+- [x] fail_compile_130805769 - stack slot spill handling incomplete
 
 ### Runtime Crashes
 - [ ] crash_55976753

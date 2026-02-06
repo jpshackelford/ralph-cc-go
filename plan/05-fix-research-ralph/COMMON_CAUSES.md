@@ -36,6 +36,22 @@
 
 ---
 
+## Register Allocation & Spilling
+
+### Incomplete Stack Slot Handling in Stacking Transform (CONFIRMED: fail_compile_130805769)
+
+**Symptom**: Panic "stack slot in register position - regalloc incomplete" during assembly generation.
+
+**Cause**: Register allocator correctly spills high-pressure variables to stack slots. However, `pkg/stacking/transform.go` only handles stack slots for `Lop` instructions. When spilled variables appear in `Lload.Dest`, `Lstore.Src`, `Lcond.Args`, etc., `locToReg()` panics.
+
+**Location**: `pkg/stacking/transform.go` - `transformInst` for Lload, Lstore, Lcond, Ljumptable, Lbuiltin
+
+**Fix**: Add spill/reload handling for all instruction types that access `Loc` fields, similar to how `transformLop` already handles it for operations.
+
+**Trigger**: Functions with >10 variables live across function calls (exhausts callee-saved registers X19-X28).
+
+---
+
 ## Categories to Watch
 
 1. **Stack layout** - offset calculations, frame pointer usage
