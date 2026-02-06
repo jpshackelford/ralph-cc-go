@@ -15,9 +15,9 @@
 ### Runtime Crashes
 - [x] crash_55976753 - callee-save offset sign error (same as COMMON_CAUSES)
 - [x] crash_785411410 - callee-save offset sign error (same root cause as 20260205-225448)
-- [ ] crash_3051214201
-- [ ] crash_2690612573
-- [ ] crash_184567722
+- [x] crash_3051214201 - callee-save offset sign error (verified duplicate)
+- [x] crash_2690612573 - callee-save offset sign error (verified duplicate)
+- [x] crash_184567722 - callee-save offset sign error (verified duplicate)
 - [ ] crash_1176020246
 - [ ] crash_1870324845
 - [ ] crash_145691413
