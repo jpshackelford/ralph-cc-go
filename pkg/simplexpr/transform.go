@@ -446,12 +446,18 @@ func (t *Transformer) transformAssign(lhs, rhs cabs.Expr) TransformResult {
 	stmts = append(stmts, right.Stmts...)
 
 	// Assignment: lhs = rhs
-	// In C, the value of an assignment expression is the assigned value
+	// In C, the value of an assignment expression is the assigned value (after conversion to LHS type)
 	// We use a temp to capture this
 	typ := left.Expr.ExprType()
 	tempID := t.newTemp(typ)
 
-	stmts = append(stmts, clight.Sset{TempID: tempID, RHS: right.Expr})
+	// Cast RHS to LHS type to ensure proper truncation (e.g., assigning int to uint8_t)
+	rhsExpr := right.Expr
+	if right.Expr.ExprType() != typ {
+		rhsExpr = clight.Ecast{Arg: right.Expr, Typ: typ}
+	}
+
+	stmts = append(stmts, clight.Sset{TempID: tempID, RHS: rhsExpr})
 	stmts = append(stmts, clight.Sassign{LHS: left.Expr, RHS: clight.Etempvar{ID: tempID, Typ: typ}})
 
 	return TransformResult{

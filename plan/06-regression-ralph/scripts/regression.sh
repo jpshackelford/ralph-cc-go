@@ -37,10 +37,12 @@ KNOWN_ISSUES=(
     "crash:928313049"
     "fail_compile:130805769"
     "mismatch:1076532241"
+    "mismatch:15695102"
     "mismatch:169314859"
     "mismatch:2426612766"
     "mismatch:2487828851"
     "mismatch:263236830"
+    "mismatch:327021257"
 )
 
 # Generate a csmith test file from seed (same logic as csmith-fuzz.sh)

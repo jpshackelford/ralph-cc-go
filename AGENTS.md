@@ -82,7 +82,15 @@ Example:
 3. Integer promotion in binary operations (commit 2d27a2c)
 4. Comparison type selection for C integer promotions (commit 4107202)
 5. Register allocation parameter preservation (commit fa28343)
+6. Small integer type initialization truncation - `int8_t x = 188;` now correctly stores -68
 **Verification**: All mismatch cases in csmith-reports/ now produce matching results with gcc
+
+### Small integer type initialization truncation (FIXED)
+**Symptom**: Variables like `int8_t x = 188;` stored as 188 instead of -68 (signed wraparound)
+**Example**: `csmith-reports/mismatch_327021257.c` - gcc returns 8, ralph-cc returned 121
+**Root cause**: The `coerceToType` function in `pkg/clightgen/stmt.go` only handled long types, not smaller integer types (int8_t, int16_t)
+**Fix**: Extended `coerceToType` to insert an explicit cast for int8/int16 target types when the expression type differs, ensuring proper truncation and sign handling
+**Files Changed**: `pkg/clightgen/stmt.go`
 
 ## Test Data
 

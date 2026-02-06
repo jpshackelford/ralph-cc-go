@@ -10,16 +10,31 @@ import (
 // coerceToType coerces an expression to a target type.
 // For integer constants being assigned to long variables, this converts
 // Econst_int to Econst_long to ensure proper 64-bit handling.
+// For smaller integer types (int8_t, int16_t), this adds a cast to ensure
+// proper sign extension and truncation.
 func coerceToType(expr clight.Expr, targetType ctypes.Type) clight.Expr {
 	// Check if target is a long type
-	_, isLong := targetType.(ctypes.Tlong)
-	if !isLong {
+	if _, isLong := targetType.(ctypes.Tlong); isLong {
+		// Convert integer constants to long constants
+		if intConst, ok := expr.(clight.Econst_int); ok {
+			return clight.Econst_long{Value: intConst.Value, Typ: targetType}
+		}
 		return expr
 	}
-	// Convert integer constants to long constants
-	if intConst, ok := expr.(clight.Econst_int); ok {
-		return clight.Econst_long{Value: intConst.Value, Typ: targetType}
+
+	// Check if target is a small integer type (smaller than int)
+	// and the expression is an integer constant or has a different type
+	if intType, isInt := targetType.(ctypes.Tint); isInt {
+		if intType.Size == ctypes.I8 || intType.Size == ctypes.I16 {
+			// Add explicit cast to ensure proper truncation and sign handling
+			// This handles cases like: int8_t x = 188; (should become -68)
+			exprType := expr.ExprType()
+			if exprType != nil && !ctypes.Equal(exprType, targetType) {
+				return clight.Ecast{Arg: expr, Typ: targetType}
+			}
+		}
 	}
+
 	return expr
 }
 
