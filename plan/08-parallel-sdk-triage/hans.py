@@ -24,7 +24,7 @@ Examples:
 Lint/Typecheck:
     uvx ruff check hans.py
     uvx ruff format hans.py
-    uvx ty check hans.py
+    uvx --with openhands-sdk --with openhands-tools --with rich ty check hans.py
 """
 
 import argparse
@@ -57,6 +57,64 @@ from openhands.tools.terminal import TerminalTool
 
 logger = get_logger(__name__)
 console = Console()
+
+
+# =============================================================================
+# Git & Shell Helpers
+# =============================================================================
+
+
+def sh(cmd: str) -> tuple[int, str]:
+    """Run shell command. Returns (returncode, stdout+stderr)."""
+    r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
+    return r.returncode, r.stdout + r.stderr
+
+
+def is_dirty() -> bool:
+    """True if uncommitted changes exist."""
+    return bool(sh("git status --porcelain 2>/dev/null")[1].strip())
+
+
+def git_reset() -> None:
+    """Discard all local changes."""
+    sh("git reset --hard HEAD && git clean -fd")
+    console.print("[green]✓ Reset[/green]")
+
+
+def git_pull() -> None:
+    """Pull latest."""
+    code, out = sh("git pull --rebase origin main")
+    console.print(
+        "[green]✓ Pulled[/green]" if code == 0 else "[yellow]⚠ Pull failed[/yellow]"
+    )
+
+
+def git_commit_and_push(msg: str) -> bool:
+    """Stage, commit, push."""
+    sh("git add -A")
+    code, out = sh(f'git commit -m "{msg}"')
+    if code != 0:
+        return "nothing to commit" in out
+    console.print("[green]✓ Committed[/green]")
+    code, _ = sh("git push origin main")
+    console.print(
+        "[green]✓ Pushed[/green]" if code == 0 else "[yellow]⚠ Push failed[/yellow]"
+    )
+    return True
+
+
+def run_tests() -> bool:
+    """Run make test."""
+    console.print("[dim]Running make test...[/dim]")
+    code, out = sh("make test")
+    if code == 0:
+        console.print("[green]✓ Tests passed[/green]")
+        return True
+    if "No rule" in out or "not found" in out:
+        return True  # No tests configured
+    console.print("[red]✗ Tests failed[/red]")
+    return False
+
 
 # =============================================================================
 # Agent Factory Functions
@@ -349,6 +407,27 @@ def main():
         choices=[1, 2, 3, 4, 5],
         help="Number of parallel agents (default: 4)",
     )
+    parser.add_argument(
+        "--no-commit",
+        action="store_true",
+        help="Skip git commit/push at the end",
+    )
+    parser.add_argument(
+        "--no-pull",
+        action="store_true",
+        help="Skip git pull at the start",
+    )
+    dirty_group = parser.add_mutually_exclusive_group()
+    dirty_group.add_argument(
+        "--reset",
+        action="store_true",
+        help="Discard any uncommitted changes before starting",
+    )
+    dirty_group.add_argument(
+        "--keep",
+        action="store_true",
+        help="Keep uncommitted changes and continue (risky)",
+    )
     args = parser.parse_args()
 
     # Discover phase and tasks early (for dry-run)
@@ -392,12 +471,29 @@ Collect results and report what was fixed."""
         console.print(Panel(prompt, title="Prompt"))
         return
 
+    # =========================================================================
+    # PRE-FLIGHT: Check for uncommitted changes
+    # =========================================================================
+    if is_dirty():
+        console.print("\n[bold yellow]⚠️  Uncommitted changes detected![/bold yellow]")
+        _, diff = sh("git status --short")
+        console.print(f"[dim]{diff[:500]}[/dim]")
+
+        if args.reset:
+            git_reset()
+        elif args.keep:
+            console.print("[yellow]--keep: continuing with dirty state[/yellow]")
+        else:
+            console.print("[red]Cannot start dirty. Use --reset or --keep[/red]")
+            sys.exit(1)
+
     # Check for API key (only needed for actual run)
     api_key = os.getenv("LLM_API_KEY")
     if not api_key:
         console.print("[red]ERROR: LLM_API_KEY environment variable is not set.[/red]")
         console.print("Get one from: https://app.all-hands.dev/settings/api-keys")
         sys.exit(1)
+    assert api_key is not None  # for type checker
 
     # Configure LLM
     model = os.getenv("LLM_MODEL", "anthropic/claude-sonnet-4-5-20250929")
@@ -440,6 +536,13 @@ Collect results and report what was fixed."""
     for aid, task in tasks.items():
         console.print(f"   [dim]{aid}:[/dim] {task[:60]}...")
 
+    # =========================================================================
+    # PRE-FLIGHT: Sync with remote
+    # =========================================================================
+    if not args.no_pull:
+        console.print("\n[bold]📥 Syncing...[/bold]")
+        git_pull()
+
     # Create orchestrator agent
     orchestrator = Agent(
         llm=llm,
@@ -450,7 +553,7 @@ Collect results and report what was fixed."""
         ],
         agent_context=AgentContext(
             skills=[COMPILER_DEBUG_SKILL],
-            system_message_suffix="You coordinate multiple sub-agents working in parallel. Use the delegate tool to spawn and assign tasks.",
+            system_message_suffix="You coordinate multiple sub-agents working in parallel. Use the delegate tool to spawn and assign tasks. Do NOT commit changes - the gather phase will handle that.",
         ),
     )
 
@@ -467,11 +570,30 @@ Collect results and report what was fixed."""
     )
     console.print("=" * 60)
 
-    conversation.send_message(prompt)
-    conversation.run()
+    conversation.send_message(prompt)  # type: ignore[attr-defined]
+    conversation.run()  # type: ignore[attr-defined]
+
+    # =========================================================================
+    # GATHER: Verify and commit
+    # =========================================================================
+    console.print("\n" + "=" * 60)
+    console.print("[bold]📦 Gather phase[/bold]")
+
+    if is_dirty():
+        _, diff = sh("git status --short")
+        console.print(f"[dim]{diff[:300]}[/dim]")
+
+        if run_tests() and not args.no_commit:
+            git_commit_and_push(f"fix(compiler): HANS {phase} - {len(tasks)} agents")
+        elif args.no_commit:
+            console.print("[yellow]--no-commit: skipping[/yellow]")
+        else:
+            console.print("[red]Tests failed - not committing[/red]")
+    else:
+        console.print("[yellow]No changes[/yellow]")
 
     # Report costs
-    cost = conversation.conversation_stats.get_combined_metrics().accumulated_cost
+    cost = conversation.conversation_stats.get_combined_metrics().accumulated_cost  # type: ignore[attr-defined]
     console.print("=" * 60)
     console.print(f"[cyan]💰 Total cost: ${cost:.4f}[/cyan]")
     console.print("[bold green]✅ HANS complete[/bold green]")
