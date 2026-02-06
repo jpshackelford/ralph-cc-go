@@ -148,45 +148,18 @@ EOF
         continue
     fi
     
-    # Try to assemble and link with run.sh approach
+    # Try to assemble and link
     ralph_out="$WORK_DIR/ralph_$seed"
-    macos_asm="$WORK_DIR/test_${seed}_macos.s"
     obj_file="$WORK_DIR/test_$seed.o"
     
-    # Convert to macOS format (same as run.sh)
-    perl -ne '
-        BEGIN { $adrp_label = ""; }
-        s/^\s*\.type.*\n//;
-        s/^\s*\.size.*\n//;
-        s/^\s*\.section\s+\.rodata.*/.section __DATA,__const/;
-        s/\.global\s+([a-zA-Z_][a-zA-Z0-9_]*)/.global _\1/;
-        s/^([a-zA-Z_][a-zA-Z0-9_]*):/_\1:/;
-        s/\bbl\s+([a-zA-Z_][a-zA-Z0-9_]*)/bl _\1/;
-        if (/\badrp\s+(\w+),\s*(\.L\w+)/) {
-            $adrp_label = $2;
-            s/\badrp\s+(\w+),\s*(\.L\w+)/adrp\t$1, $2\@PAGE/;
-        }
-        elsif (/\badrp\s+(\w+),\s*([a-zA-Z_][a-zA-Z0-9_]*)/) {
-            $adrp_label = "_$2";
-            s/\badrp\s+(\w+),\s*([a-zA-Z_][a-zA-Z0-9_]*)/adrp\t$1, _$2\@PAGE/;
-        }
-        elsif ($adrp_label ne "" && /^\s*add\s+(\w+),\s*(\w+),\s*#0\s*\n/) {
-            s/^\s*add\s+(\w+),\s*(\w+),\s*#0\s*\n/\tadd\t$1, $2, $adrp_label\@PAGEOFF\n/;
-            $adrp_label = "";
-        }
-        else {
-            $adrp_label = "";
-        }
-        print;
-    ' "$ralph_asm" > "$macos_asm"
-    
-    if ! as -o "$obj_file" "$macos_asm" 2>/dev/null; then
+    # ralph-cc already outputs macOS format assembly, use directly
+    if ! as -o "$obj_file" "$ralph_asm" 2>/dev/null; then
         ralph_fail=$((ralph_fail + 1))
         echo "[$i/$ITERATIONS] ASM_FAIL seed=$seed"
         echo "### seed $seed: assembly failed" >> "$REPORT_FILE"
         cp "$test_file" "$REPORT_DIR/fail_asm_$seed.c"
         cp "$ralph_asm" "$REPORT_DIR/fail_asm_$seed.s"
-        rm -f "$csmith_file" "$gcc_out" "$macos_asm"
+        rm -f "$csmith_file" "$gcc_out"
         continue
     fi
     
@@ -196,7 +169,7 @@ EOF
         echo "[$i/$ITERATIONS] LINK_FAIL seed=$seed"
         echo "### seed $seed: linking failed" >> "$REPORT_FILE"
         cp "$test_file" "$REPORT_DIR/fail_link_$seed.c"
-        rm -f "$csmith_file" "$gcc_out" "$macos_asm" "$obj_file"
+        rm -f "$csmith_file" "$gcc_out" "$obj_file"
         continue
     fi
     
@@ -235,7 +208,7 @@ EOF
     fi
     
     # Cleanup work files
-    rm -f "$csmith_file" "$test_file" "$ralph_asm" "$macos_asm" "$obj_file" "$gcc_out" "$ralph_out"
+    rm -f "$csmith_file" "$test_file" "$ralph_asm" "$obj_file" "$gcc_out" "$ralph_out"
 done
 
 echo ""

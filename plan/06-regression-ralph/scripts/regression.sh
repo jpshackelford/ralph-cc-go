@@ -128,7 +128,6 @@ run_test() {
     local seed=$2
     local test_file="$WORK_DIR/test_$seed.c"
     local ralph_asm="$WORK_DIR/test_$seed.s"
-    local macos_asm="$WORK_DIR/test_${seed}_macos.s"
     local obj_file="$WORK_DIR/test_$seed.o"
     local gcc_out="$WORK_DIR/gcc_$seed"
     local ralph_out="$WORK_DIR/ralph_$seed"
@@ -156,35 +155,9 @@ run_test() {
         return
     fi
     
-    # Convert to macOS format
-    perl -ne '
-        BEGIN { $adrp_label = ""; }
-        s/^\s*\.type.*\n//;
-        s/^\s*\.size.*\n//;
-        s/^\s*\.section\s+\.rodata.*/.section __DATA,__const/;
-        s/\.global\s+([a-zA-Z_][a-zA-Z0-9_]*)/.global _\1/;
-        s/^([a-zA-Z_][a-zA-Z0-9_]*):/_\1:/;
-        s/\bbl\s+([a-zA-Z_][a-zA-Z0-9_]*)/bl _\1/;
-        if (/\badrp\s+(\w+),\s*(\.L\w+)/) {
-            $adrp_label = $2;
-            s/\badrp\s+(\w+),\s*(\.L\w+)/adrp\t$1, $2\@PAGE/;
-        }
-        elsif (/\badrp\s+(\w+),\s*([a-zA-Z_][a-zA-Z0-9_]*)/) {
-            $adrp_label = "_$2";
-            s/\badrp\s+(\w+),\s*([a-zA-Z_][a-zA-Z0-9_]*)/adrp\t$1, _$2\@PAGE/;
-        }
-        elsif ($adrp_label ne "" && /^\s*add\s+(\w+),\s*(\w+),\s*#0\s*\n/) {
-            s/^\s*add\s+(\w+),\s*(\w+),\s*#0\s*\n/\tadd\t$1, $2, $adrp_label\@PAGEOFF\n/;
-            $adrp_label = "";
-        }
-        else {
-            $adrp_label = "";
-        }
-        print;
-    ' "$ralph_asm" > "$macos_asm"
-    
+    # ralph-cc already outputs macOS format assembly, use directly
     # Assemble
-    if ! as -o "$obj_file" "$macos_asm" 2>/dev/null; then
+    if ! as -o "$obj_file" "$ralph_asm" 2>/dev/null; then
         echo "REGRESS:asm_fail"
         return
     fi
