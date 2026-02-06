@@ -73,15 +73,16 @@ Example:
 **Debugging**: Compare `--dltl` output - check if parameter registers (X0-X7) are written before their last use
 **Location**: `pkg/regalloc/interference.go` - see `BuildInterferenceGraph` parameter handling
 
-### Complex nested expressions with side effects (OPEN)
+### Complex nested expressions with side effects (FIXED)
 **Symptom**: csmith-generated tests produce different values compared to gcc
-**Example**: `csmith-reports/mismatch_1049130713.c` - gcc returns 3, ralph-cc returns 103
-**Investigation**: Individual operations (||, divisions, casts, assignments) work correctly in isolation. The bug appears when combining many complex nested expressions with multiple side effects.
-**Possible causes**: 
-- Evaluation order differences in compound expressions
-- Register spilling/reloading issues in deeply nested code
-- Control flow divergence in complex conditional expressions
-**Debugging approach**: Binary search by removing code until the mismatch disappears, then narrow down the problematic construct
+**Example**: `csmith-reports/mismatch_1049130713.c` - previously returned different values
+**Root Causes**: Multiple issues were fixed:
+1. Type casts for function call arguments (commit 8a523e6)
+2. Large integer literal typing and comparison sign extension (commit 2ab1564)
+3. Integer promotion in binary operations (commit 2d27a2c)
+4. Comparison type selection for C integer promotions (commit 4107202)
+5. Register allocation parameter preservation (commit fa28343)
+**Verification**: All mismatch cases in csmith-reports/ now produce matching results with gcc
 
 ## Test Data
 
