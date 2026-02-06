@@ -22,3 +22,5 @@ checkouts/
 *.o
 csmith-reports/
 platform.info
+
+.env
