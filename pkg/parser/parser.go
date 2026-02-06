@@ -461,10 +461,17 @@ func (p *Parser) parseStructBody(name string, isUnion bool) cabs.Definition {
 }
 
 // parseFunctionPointerField parses a function pointer field: returnType (*name)(params)
+// Also handles nested case: returnType (*(*name)(innerParams))(outerParams)
 // It expects to be positioned at '(' with peek at '*'
 func (p *Parser) parseFunctionPointerField(returnType string) *cabs.StructField {
 	p.nextToken() // consume '('
 	p.nextToken() // consume '*'
+
+	// Check for nested function pointer: (*(*name)(innerParams))(outerParams)
+	// This is a function pointer returning a function pointer
+	if p.curTokenIs(lexer.TokenLParen) && p.peekTokenIs(lexer.TokenStar) {
+		return p.parseNestedFunctionPointerField(returnType)
+	}
 
 	// Field name
 	if !p.curTokenIs(lexer.TokenIdent) {
@@ -484,9 +491,77 @@ func (p *Parser) parseFunctionPointerField(returnType string) *cabs.StructField 
 		p.addError(fmt.Sprintf("expected '(' for function pointer parameters, got %s", p.curToken.Type))
 		return nil
 	}
+
+	paramTypes := p.parseFuncPtrParamTypes()
+
+	// Expect ';'
+	if !p.expect(lexer.TokenSemicolon) {
+		return nil
+	}
+
+	// Build the function pointer type string: returnType(*)(paramTypes)
+	typeSpec := returnType + "(*)(" + joinParamTypes(paramTypes) + ")"
+
+	return &cabs.StructField{TypeSpec: typeSpec, Name: fieldName}
+}
+
+// parseNestedFunctionPointerField parses: returnType (*(*name)(innerParams))(outerParams)
+// Called when positioned at '(' after (*
+func (p *Parser) parseNestedFunctionPointerField(outerReturnType string) *cabs.StructField {
+	p.nextToken() // consume '('
+	p.nextToken() // consume '*'
+
+	// Field name
+	if !p.curTokenIs(lexer.TokenIdent) {
+		p.addError(fmt.Sprintf("expected function pointer field name, got %s", p.curToken.Type))
+		return nil
+	}
+	fieldName := p.curToken.Literal
+	p.nextToken()
+
+	// Expect ')' closing inner name
+	if !p.expect(lexer.TokenRParen) {
+		return nil
+	}
+
+	// Expect '(' for inner parameter list
+	if !p.curTokenIs(lexer.TokenLParen) {
+		p.addError(fmt.Sprintf("expected '(' for inner function pointer parameters, got %s", p.curToken.Type))
+		return nil
+	}
+
+	innerParamTypes := p.parseFuncPtrParamTypes()
+
+	// Expect ')' closing outer declarator
+	if !p.expect(lexer.TokenRParen) {
+		return nil
+	}
+
+	// Expect '(' for outer parameter list
+	if !p.curTokenIs(lexer.TokenLParen) {
+		p.addError(fmt.Sprintf("expected '(' for outer function pointer parameters, got %s", p.curToken.Type))
+		return nil
+	}
+
+	outerParamTypes := p.parseFuncPtrParamTypes()
+
+	// Expect ';'
+	if !p.expect(lexer.TokenSemicolon) {
+		return nil
+	}
+
+	// Build type: outerReturnType(*)(outerParams)(*)(innerParams)
+	// This represents: pointer to function taking innerParams returning pointer to function taking outerParams returning outerReturnType
+	typeSpec := outerReturnType + "(*)(" + joinParamTypes(outerParamTypes) + ")(*)(" + joinParamTypes(innerParamTypes) + ")"
+
+	return &cabs.StructField{TypeSpec: typeSpec, Name: fieldName}
+}
+
+// parseFuncPtrParamTypes parses function pointer parameter types
+// Expects to be positioned at '(' and advances past closing ')'
+func (p *Parser) parseFuncPtrParamTypes() []string {
 	p.nextToken() // consume '('
 
-	// Parse parameter types for the function pointer type string
 	var paramTypes []string
 	for !p.curTokenIs(lexer.TokenRParen) && !p.curTokenIs(lexer.TokenEOF) {
 		// Skip type qualifiers
@@ -524,20 +599,12 @@ func (p *Parser) parseFunctionPointerField(returnType string) *cabs.StructField 
 		}
 	}
 
-	// Expect ')'
-	if !p.expect(lexer.TokenRParen) {
-		return nil
+	// Consume closing ')'
+	if p.curTokenIs(lexer.TokenRParen) {
+		p.nextToken()
 	}
 
-	// Expect ';'
-	if !p.expect(lexer.TokenSemicolon) {
-		return nil
-	}
-
-	// Build the function pointer type string: returnType(*)(paramTypes)
-	typeSpec := returnType + "(*)(" + joinParamTypes(paramTypes) + ")"
-
-	return &cabs.StructField{TypeSpec: typeSpec, Name: fieldName}
+	return paramTypes
 }
 
 // joinParamTypes joins parameter types with ", "

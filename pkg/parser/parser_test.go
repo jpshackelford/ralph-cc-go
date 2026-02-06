@@ -3242,6 +3242,13 @@ func TestFunctionPointerInStructField(t *testing.T) {
 			"char*(*)(void)",
 			1,
 		},
+		{
+			"function pointer returning function pointer",
+			"struct S { void (*(*xDlSym)(void*, const char*))(void); };",
+			"xDlSym",
+			"void(*)(void)(*)(void*, char*)",
+			1,
+		},
 	}
 
 	for _, tt := range tests {
