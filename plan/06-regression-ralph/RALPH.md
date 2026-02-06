@@ -5,7 +5,7 @@ Execute these steps.
 3. Any pending git changes are from a previous attempt. your choice to finish or reset.
 4. Do ONLY that fix, and related automated tests.
 5. Verify (including `make check`).
-6. Confirm we didn't break the previous fuzz fixes by running `plan/06-regression-ralph/scripts/regression.sh`, then add this case to it.
+6. Add this case to the fuzz file, `plan/06-regression-ralph/scripts/regression.sh` and run it to make sure nothing broke.
 7. Update progress file.
 8. If everything passed, commit. Else bail.
 
