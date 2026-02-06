@@ -339,8 +339,8 @@ func TestTempTypes(t *testing.T) {
 
 func TestTransformExpr_UnaryOps(t *testing.T) {
 	tests := []struct {
-		name    string
-		op      cabs.UnaryOp
+		name     string
+		op       cabs.UnaryOp
 		clightOp clight.UnaryOp
 	}{
 		{"negation", cabs.OpNeg, clight.Oneg},
@@ -487,5 +487,30 @@ func TestTransformExpr_StringLiteralWithEscapes(t *testing.T) {
 	expected := "Hello\nWorld"
 	if estr.Value != expected {
 		t.Errorf("expected value %q, got %q", expected, estr.Value)
+	}
+}
+
+func TestTransformExpr_IntegerPromotion(t *testing.T) {
+	tr := New()
+	// Set variable types as uint16
+	tr.SetType("x", ctypes.Tint{Size: ctypes.I16, Sign: ctypes.Unsigned})
+	tr.SetType("y", ctypes.Tint{Size: ctypes.I16, Sign: ctypes.Unsigned})
+
+	// x - y should have result type int (after promotion)
+	result := tr.TransformExpr(cabs.Binary{
+		Op:    cabs.OpSub,
+		Left:  cabs.Variable{Name: "x"},
+		Right: cabs.Variable{Name: "y"},
+	})
+
+	binExpr, ok := result.Expr.(clight.Ebinop)
+	if !ok {
+		t.Fatalf("expected Ebinop, got %T", result.Expr)
+	}
+
+	// The result type should be int, not uint16
+	expectedType := ctypes.Int()
+	if !ctypes.Equal(binExpr.Typ, expectedType) {
+		t.Errorf("expected result type %v, got %v", expectedType, binExpr.Typ)
 	}
 }

@@ -410,7 +410,8 @@ func (t *Transformer) transformBinary(expr cabs.Binary) TransformResult {
 		stmts = append(stmts, right.Stmts...)
 
 		clightOp := t.cabsToBinaryOp(expr.Op)
-		typ := left.Expr.ExprType() // simplified type inference
+		// Apply C's usual arithmetic conversions for result type
+		typ := usualArithmeticConversion(left.Expr.ExprType(), right.Expr.ExprType())
 
 		// Comparison operators return int
 		if clightOp >= clight.Oeq && clightOp <= clight.Oge {
@@ -845,6 +846,90 @@ func (t *Transformer) transformLogicalAnd(left, right cabs.Expr) TransformResult
 		Stmts: stmts,
 		Expr:  clight.Etempvar{ID: tempID, Typ: resultType},
 	}
+}
+
+// usualArithmeticConversion computes the result type of a binary arithmetic
+// operation according to C's "usual arithmetic conversions" (C99 6.3.1.8).
+// Key rules:
+// - Types smaller than int (char, short, int8, int16, uint8, uint16) are
+//   promoted to int before arithmetic
+// - If both operands become int, the result is int
+// - If one operand is unsigned int and the other is signed int (with same
+//   rank), the result is unsigned int
+// - For long types, similar rules apply with long/unsigned long
+func usualArithmeticConversion(left, right ctypes.Type) ctypes.Type {
+	// Helper to check if type needs integer promotion (smaller than int)
+	needsPromotion := func(t ctypes.Type) bool {
+		switch typ := t.(type) {
+		case ctypes.Tint:
+			// int8, int16, uint8, uint16 all promote to int
+			return typ.Size == ctypes.I8 || typ.Size == ctypes.I16
+		}
+		return false
+	}
+
+	// Helper to check if type is unsigned int (32-bit)
+	isUnsignedInt := func(t ctypes.Type) bool {
+		if typ, ok := t.(ctypes.Tint); ok {
+			return typ.Size == ctypes.I32 && typ.Sign == ctypes.Unsigned
+		}
+		return false
+	}
+
+	// Helper to check if type is unsigned long
+	isUnsignedLong := func(t ctypes.Type) bool {
+		if typ, ok := t.(ctypes.Tlong); ok {
+			return typ.Sign == ctypes.Unsigned
+		}
+		return false
+	}
+
+	// Handle float types - use wider float type
+	leftFloat, leftIsFloat := left.(ctypes.Tfloat)
+	rightFloat, rightIsFloat := right.(ctypes.Tfloat)
+	if leftIsFloat || rightIsFloat {
+		if leftIsFloat && rightIsFloat {
+			if leftFloat.Size == ctypes.F64 || rightFloat.Size == ctypes.F64 {
+				return ctypes.Double()
+			}
+			return ctypes.Float()
+		}
+		if leftIsFloat {
+			return left
+		}
+		return right
+	}
+
+	// Handle long types
+	_, leftIsLong := left.(ctypes.Tlong)
+	_, rightIsLong := right.(ctypes.Tlong)
+	if leftIsLong || rightIsLong {
+		if isUnsignedLong(left) || isUnsignedLong(right) {
+			return ctypes.Tlong{Sign: ctypes.Unsigned}
+		}
+		return ctypes.Long()
+	}
+
+	// For pointer arithmetic, result is typically pointer or long
+	if _, ok := left.(ctypes.Tpointer); ok {
+		return left
+	}
+	if _, ok := right.(ctypes.Tpointer); ok {
+		return right
+	}
+
+	// If either operand needs promotion (smaller than int), result is int
+	if needsPromotion(left) || needsPromotion(right) {
+		return ctypes.Int()
+	}
+
+	// If either operand is unsigned int, result is unsigned int
+	if isUnsignedInt(left) || isUnsignedInt(right) {
+		return ctypes.UInt()
+	}
+
+	// Default: use left operand type (typically int)
+	return left
 }
 
 // transformLogicalOr implements short-circuit || evaluation.
