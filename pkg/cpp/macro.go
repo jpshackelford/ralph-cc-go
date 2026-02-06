@@ -267,6 +267,14 @@ func (mt *MacroTable) initBuiltins() {
 			return []Token{{Type: PP_NUMBER, Text: "1", Loc: loc}}
 		},
 	}
+	// Apple compiler compatibility
+	mt.macros["__APPLE_CC__"] = &Macro{
+		Name: "__APPLE_CC__",
+		Kind: MacroBuiltin,
+		BuiltinFunc: func(loc SourceLoc) []Token {
+			return []Token{{Type: PP_NUMBER, Text: "6000", Loc: loc}}
+		},
+	}
 
 	// Type limits macros
 	mt.macros["__CHAR_BIT__"] = &Macro{

@@ -19,7 +19,7 @@ Each milestone has verification command to know when complete.
 
 ### Tasks
 
-[ ] 1.1 Fix preprocessor expression parsing - Current error: `#if: expected ')'` in system headers. The `#if` expression parser needs to handle complex expressions from macOS SDK headers. Progress: `progress/PREPROC_EXPR.md`
+[x] 1.1 Fix preprocessor expression parsing - Current error: `#if: expected ')'` in system headers. The `#if` expression parser needs to handle complex expressions from macOS SDK headers. Progress: `progress/PREPROC_EXPR.md`
 
 [ ] 1.2 Handle `__has_feature`, `__has_extension`, `__has_builtin` - These clang-specific macros appear in system headers. Need to define them or handle specially in cpp. Progress: `progress/HAS_FEATURE.md`
 

@@ -616,3 +616,48 @@ if !strings.Contains(result, "4") {
 t.Errorf("Expected '4' but got:\n%s", result)
 }
 }
+
+func TestPreprocessor_DefinedInMacroExpansion(t *testing.T) {
+	// Test that defined() works correctly when it appears inside a macro expansion
+	// with a literal identifier (not a macro parameter). This pattern appears in
+	// system headers like __is_modern_darwin which uses defined(__DRIVERKIT_VERSION_MIN_REQUIRED).
+	input := `#define CHECK_CONDITION(thresh) (100 >= (thresh) || defined(__SPECIAL_FLAG__))
+#if CHECK_CONDITION(50)
+yes
+#else
+no
+#endif`
+
+	pp := NewPreprocessor(PreprocessorOptions{})
+	result, err := pp.PreprocessString(input, "test.c")
+	if err != nil {
+		t.Fatalf("Preprocessing failed: %v", err)
+	}
+
+	if !strings.Contains(result, "yes") {
+		t.Errorf("Expected 'yes' but got:\n%s", result)
+	}
+}
+
+func TestPreprocessor_ComplexMacroInIfExpression(t *testing.T) {
+	// Test complex macro with defined() similar to __is_modern_darwin in system headers
+	input := `#define MIN_REQ 100
+#define EXTRA_CHECK 0
+#define TEST_CONDITION(thresh) (MIN_REQ >= (thresh) || defined(__SPECIAL_FLAG__))
+#if TEST_CONDITION(50)
+pass
+#else
+fail
+#endif`
+
+	pp := NewPreprocessor(PreprocessorOptions{})
+	result, err := pp.PreprocessString(input, "test.c")
+	if err != nil {
+		t.Fatalf("Preprocessing failed: %v", err)
+	}
+
+	// MIN_REQ (100) >= thresh (50) should be true
+	if !strings.Contains(result, "pass") {
+		t.Errorf("Expected 'pass' but got:\n%s", result)
+	}
+}

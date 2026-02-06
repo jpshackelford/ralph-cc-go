@@ -324,6 +324,22 @@ func (cp *ConditionalProcessor) processDefinedAndExpand(tokens []Token) ([]Token
 			continue
 		}
 
+		// Handle __building_module (always 0 - we're not building modules)
+		if tok.Type == PP_IDENTIFIER && tok.Text == "__building_module" {
+			newI := cp.skipParenthesizedArg(tokens, i)
+			result = append(result, Token{Type: PP_NUMBER, Text: "0", Loc: tok.Loc})
+			i = newI
+			continue
+		}
+
+		// Handle __has_c_attribute (C2x attribute check - we return 0 for now)
+		if tok.Type == PP_IDENTIFIER && tok.Text == "__has_c_attribute" {
+			newI := cp.skipParenthesizedArg(tokens, i)
+			result = append(result, Token{Type: PP_NUMBER, Text: "0", Loc: tok.Loc})
+			i = newI
+			continue
+		}
+
 		result = append(result, tok)
 		i++
 	}
@@ -334,9 +350,16 @@ func (cp *ConditionalProcessor) processDefinedAndExpand(tokens []Token) ([]Token
 		return nil, err
 	}
 
+	// Process 'defined' operator again after macro expansion
+	// This handles cases where 'defined' appears in macro replacement lists
+	processed, err := cp.processDefinedOperator(expanded)
+	if err != nil {
+		return nil, err
+	}
+
 	// Replace any remaining identifiers with 0 (undefined macros evaluate to 0)
 	var final []Token
-	for _, tok := range expanded {
+	for _, tok := range processed {
 		if tok.Type == PP_IDENTIFIER {
 			final = append(final, Token{Type: PP_NUMBER, Text: "0", Loc: tok.Loc})
 		} else {
@@ -345,6 +368,77 @@ func (cp *ConditionalProcessor) processDefinedAndExpand(tokens []Token) ([]Token
 	}
 
 	return final, nil
+}
+
+// processDefinedOperator handles just the 'defined' operator in a token stream.
+// This is called after macro expansion to handle 'defined' that appeared in macro bodies.
+func (cp *ConditionalProcessor) processDefinedOperator(tokens []Token) ([]Token, error) {
+	var result []Token
+	i := 0
+
+	for i < len(tokens) {
+		tok := tokens[i]
+
+		// Skip whitespace
+		if tok.Type == PP_WHITESPACE {
+			i++
+			continue
+		}
+
+		// Handle 'defined' operator
+		if tok.Type == PP_IDENTIFIER && tok.Text == "defined" {
+			i++
+
+			// Skip whitespace
+			for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+				i++
+			}
+
+			if i >= len(tokens) {
+				return nil, fmt.Errorf("defined operator requires an identifier")
+			}
+
+			var name string
+			if tokens[i].Type == PP_PUNCTUATOR && tokens[i].Text == "(" {
+				// defined(NAME) form
+				i++
+				for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+					i++
+				}
+				if i >= len(tokens) || tokens[i].Type != PP_IDENTIFIER {
+					return nil, fmt.Errorf("defined() requires an identifier")
+				}
+				name = tokens[i].Text
+				i++
+				for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+					i++
+				}
+				if i >= len(tokens) || tokens[i].Type != PP_PUNCTUATOR || tokens[i].Text != ")" {
+					return nil, fmt.Errorf("missing ) in defined()")
+				}
+				i++
+			} else if tokens[i].Type == PP_IDENTIFIER {
+				// defined NAME form
+				name = tokens[i].Text
+				i++
+			} else {
+				return nil, fmt.Errorf("defined operator requires an identifier")
+			}
+
+			// Replace with 1 or 0
+			value := "0"
+			if cp.macros.IsDefined(name) {
+				value = "1"
+			}
+			result = append(result, Token{Type: PP_NUMBER, Text: value, Loc: tok.Loc})
+			continue
+		}
+
+		result = append(result, tok)
+		i++
+	}
+
+	return result, nil
 }
 
 // processHasInclude handles __has_include(<header>) or __has_include("header")
@@ -685,6 +779,36 @@ func (cp *ConditionalProcessor) processHasWarning(tokens []Token, startIdx int) 
 
 	// Return 0 for all warnings (we don't track them)
 	return i, "0"
+}
+
+// skipParenthesizedArg skips an identifier followed by parenthesized content.
+// Used for operators like __building_module(X) where we don't need the value.
+func (cp *ConditionalProcessor) skipParenthesizedArg(tokens []Token, startIdx int) int {
+	i := startIdx + 1 // skip the identifier
+
+	// Skip whitespace
+	for i < len(tokens) && tokens[i].Type == PP_WHITESPACE {
+		i++
+	}
+
+	// If no '(', just return
+	if i >= len(tokens) || tokens[i].Type != PP_PUNCTUATOR || tokens[i].Text != "(" {
+		return i
+	}
+
+	// Skip to matching ')'
+	parenDepth := 1
+	i++ // skip '('
+	for i < len(tokens) && parenDepth > 0 {
+		if tokens[i].Type == PP_PUNCTUATOR && tokens[i].Text == "(" {
+			parenDepth++
+		} else if tokens[i].Type == PP_PUNCTUATOR && tokens[i].Text == ")" {
+			parenDepth--
+		}
+		i++
+	}
+
+	return i
 }
 
 // evaluateExpr evaluates a constant expression from tokens.
