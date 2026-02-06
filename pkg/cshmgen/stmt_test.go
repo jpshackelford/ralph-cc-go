@@ -256,13 +256,14 @@ func TestTranslateBreak(t *testing.T) {
 		t.Fatalf("unexpected loop body type: %T", loop.Body)
 	}
 
-	// The inner block body should be the break (Sexit{2})
+	// The inner block body should be the break (Sexit{1})
+	// Sexit(0) = exit inner block (continue), Sexit(1) = exit inner + outer (break)
 	sexit, ok := innerBlock.Body.(csharpminor.Sexit)
 	if !ok {
 		t.Fatalf("expected Sexit for break, got %T", innerBlock.Body)
 	}
-	if sexit.N != 2 {
-		t.Errorf("expected Sexit{N: 2} for break, got Sexit{N: %d}", sexit.N)
+	if sexit.N != 1 {
+		t.Errorf("expected Sexit{N: 1} for break, got Sexit{N: %d}", sexit.N)
 	}
 }
 
@@ -290,13 +291,14 @@ func TestTranslateContinue(t *testing.T) {
 		t.Fatalf("unexpected loop body type: %T", loop.Body)
 	}
 
-	// The inner block body should be the continue (Sexit{1})
+	// The inner block body should be the continue (Sexit{0})
+	// Sexit(0) = exit inner block (continue), Sexit(1) = exit inner + outer (break)
 	sexit, ok := innerBlock.Body.(csharpminor.Sexit)
 	if !ok {
 		t.Fatalf("expected Sexit for continue, got %T", innerBlock.Body)
 	}
-	if sexit.N != 1 {
-		t.Errorf("expected Sexit{N: 1} for continue, got Sexit{N: %d}", sexit.N)
+	if sexit.N != 0 {
+		t.Errorf("expected Sexit{N: 0} for continue, got Sexit{N: %d}", sexit.N)
 	}
 }
 

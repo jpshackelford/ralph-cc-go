@@ -78,7 +78,8 @@ func transformStmt(stmt cabs.Stmt, simplExpr *simplexpr.Transformer) clight.Stmt
 
 	case cabs.For:
 		// for (init; cond; step) body becomes:
-		// init; loop { if (cond) { body; step } else break }
+		// init; loop { if (cond) body else break } with Continue = step
+		// The step is in the Continue field so that 'continue' statements execute it
 		var initStmt clight.Stmt = clight.Sskip{}
 		if s.Init != nil {
 			initResult := simplExpr.TransformExpr(s.Init)
@@ -118,11 +119,11 @@ func transformStmt(stmt cabs.Stmt, simplExpr *simplexpr.Transformer) clight.Stmt
 
 		loopBody := clight.Sifthenelse{
 			Cond: condExpr,
-			Then: clight.Seq(bodyStmt, stepStmt),
+			Then: bodyStmt,
 			Else: clight.Sbreak{},
 		}
 		fullBody := clight.Seq(append(condStmts, loopBody)...)
-		return clight.Seq(initStmt, clight.Sloop{Body: fullBody, Continue: clight.Sskip{}})
+		return clight.Seq(initStmt, clight.Sloop{Body: fullBody, Continue: stepStmt})
 
 	case cabs.Break:
 		return clight.Sbreak{}

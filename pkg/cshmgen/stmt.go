@@ -263,20 +263,27 @@ func (t *StmtTranslator) translateLoop(s clight.Sloop) csharpminor.Stmt {
 }
 
 // translateBreak translates a break statement.
-// In Csharpminor, break becomes Sexit(2) to exit both the continue block and the loop.
+// In Csharpminor, break becomes Sexit(1) to exit both the continue block and break block.
+// The structure is:
+//   block {                    <- outer block (break target, exit index 1)
+//     loop {
+//       block {                <- inner block (continue target, exit index 0)
+//         body with break/continue
+//       }
+//       step
+//     }
+//   }
 func (t *StmtTranslator) translateBreak() csharpminor.Stmt {
-	// Exit: continue block (1) + loop itself (doesn't count as block) + outer break block (1)
-	// But the way we structured it: we're inside the continue block, so:
-	// - Sexit(1) exits the continue block (back to loop iteration)
-	// - Sexit(2) exits the continue block + exits the outer break block (out of loop)
-	return csharpminor.Sexit{N: 2}
+	// Sexit(0) exits inner block (back to loop iteration with step)
+	// Sexit(1) exits both inner block + outer block (out of loop entirely)
+	return csharpminor.Sexit{N: 1}
 }
 
 // translateContinue translates a continue statement.
-// In Csharpminor, continue becomes Sexit(1) to exit the continue block
-// (the loop will then execute continue_stmt and restart).
+// In Csharpminor, continue becomes Sexit(0) to exit the inner (continue) block.
+// After exiting, the loop executes continue_stmt (step) and restarts.
 func (t *StmtTranslator) translateContinue() csharpminor.Stmt {
-	return csharpminor.Sexit{N: 1}
+	return csharpminor.Sexit{N: 0}
 }
 
 // translateReturn translates a return statement.

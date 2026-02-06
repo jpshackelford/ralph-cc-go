@@ -245,18 +245,25 @@ func (t *StmtTranslator) translateIf(s cminorsel.Sifthenelse, succ rtl.Node) rtl
 func (t *StmtTranslator) translateLoop(s cminorsel.Sloop, succ rtl.Node) rtl.Node {
 	// Loop structure:
 	//   header: body -> header (back edge)
-	// Exit is via Sexit which jumps past the loop
+	// Exit is via Sexit in an enclosing Sblock which jumps past the loop.
+	// The loop itself does NOT push an exit target - only Sblock does.
+	//
+	// For a for-loop with continue:
+	//   block {                    <- outer block (exit 2 = break)
+	//     loop {
+	//       block {                <- inner block (exit 1 = continue)
+	//         body
+	//       }
+	//       step                   <- executed after continue or normal flow
+	//     }
+	//   }
 	
 	// Allocate header node
 	header := t.cfg.AllocNode()
 	
-	// Push exit target (for Sexit(0) to jump past loop)
-	t.ctx.Push(succ)
-	
 	// Translate body -> header (back edge)
+	// Note: we do NOT push an exit target here - Sblock handles that
 	bodyEntry := t.TranslateStmt(s.Body, header)
-	
-	t.ctx.Pop()
 	
 	// Header instruction: nop -> body
 	// Actually, header IS the body entry
