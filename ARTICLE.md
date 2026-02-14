@@ -773,81 +773,329 @@ done
 
 ---
 
-## 9. Phase 6: Advanced Patterns - HANS and Parallelization
+## 9. Phase 6: Advanced Patterns - HANS and the OpenHands SDK
 
-### Evolution to Parallel Agents
+### From Bash Loop to Python SDK
+
+The original Ralph technique uses a simple bash loop. But as the ralph-cc-go project matured, it evolved to use the [OpenHands Software Agent SDK](https://github.com/OpenHands/software-agent-sdk)—a Python library for building AI coding agents. This evolution demonstrates how Ralph's core principles can be implemented programmatically with greater control and parallelization.
+
+The SDK provides the building blocks for agent construction:
+- **Agent**: The core abstraction—an LLM with tools and context
+- **Conversation**: Manages the interaction loop between user prompts and agent responses
+- **Tool**: Capabilities like terminal access, file editing, web browsing
+- **Skill**: Domain knowledge injected into the agent's context
+- **DelegateTool**: Enables one agent to spawn and coordinate sub-agents
+
+### HANS: A Ralph Implementation in Python
 
 **Commit 7f1d582**: "fix(compiler): HANS STABILIZE - 4 agents"
 
-The project evolved to use **parallel agent orchestration** with the OpenHands SDK:
+The project includes `hans.py`—a complete implementation of Ralph-style looping using the OpenHands SDK. The name follows the Ralph tradition of using character names (Hans Moleman, another Simpsons character known for his persistence despite adversity).
+
+Here's the core structure:
 
 ```python
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "openhands-sdk==1.11.1",
+#   "openhands-tools==1.11.1",
+#   "rich>=13.7.0"
+# ]
+# ///
 """
 Hans - Compiler hardening with OpenHands SDK.
 4 parallel agents coordinated by an orchestrator for compiler debugging.
 """
 
-from openhands.sdk import Agent, Conversation, Tool
+from openhands.sdk import (
+    LLM,
+    Agent,
+    AgentContext,
+    Conversation,
+    Tool,
+)
+from openhands.sdk.context import Skill
 from openhands.tools.delegate import DelegateTool, register_agent
-
-# Different agent types for different tasks
-register_agent(
-    name="seed_fixer",
-    factory_func=create_seed_fixer_agent,
-    description="Fixes csmith seed failures"
-)
-register_agent(
-    name="feature_hardener",
-    factory_func=create_feature_hardener_agent,
-    description="Hardens specific compiler features"
-)
-register_agent(
-    name="diagnostician",
-    factory_func=create_diagnostician_agent,
-    description="Deep diagnosis of complex bugs"
-)
+from openhands.tools.file_editor import FileEditorTool
+from openhands.tools.terminal import TerminalTool
 ```
 
-The orchestrator coordinates 4 sub-agents working in parallel, each with specialized skills.
+The script can be run directly with `uv run hans.py` thanks to PEP 723 inline script metadata—no virtual environment setup required.
 
-### Key HANS Patterns
+### Agent Specialization with Skills
 
-**Agent Specialization**:
+HANS defines specialized agent types, each with domain-specific knowledge injected via Skills:
 
 ```python
 COMPILER_DEBUG_SKILL = Skill(
     name="compiler_debug",
-    content="""You are debugging ralph-cc. Key commands:
-    - make build (~1s)
-    - make test (~2s)
-    - ./bin/ralph-cc --drtl test.c  # RTL IR
-    ...
-    GCC IS ALWAYS RIGHT. If gcc and ralph-cc disagree, ralph-cc has the bug.
-    """
+    content="""You are debugging the ralph-cc compiler. Key commands:
+
+BUILD & TEST:
+- `make build` (~1s) - build compiler
+- `make test` (~2s) - smoke test
+- `make check` (~30s) - full test suite
+
+IR DUMPS (find divergence stage):
+- `./bin/ralph-cc --dparse  test.c`  - parse tree
+- `./bin/ralph-cc --dclight test.c`  - Clight IR
+- `./bin/ralph-cc --drtl    test.c`  - RTL IR
+- `./bin/ralph-cc --dltl    test.c`  - LTL IR
+- `./bin/ralph-cc --dmach   test.c`  - machine code
+- `./bin/ralph-cc --dasm    test.c`  - assembly
+
+GCC IS ALWAYS RIGHT. If gcc and ralph-cc disagree, ralph-cc has the bug.
+
+After fixing, ALWAYS run `make test` to verify.""",
 )
 ```
 
-**Automatic Commit Generation**:
+This skill is the "guitar tuning" that Huntley describes—accumulated knowledge about what works, encoded so fresh agent instances can immediately apply it.
+
+### Creating Specialized Agent Types
+
+Each agent type combines tools with specialized skills:
+
+```python
+def create_seed_fixer_agent(llm: LLM) -> Agent:
+    """Agent specialized in fixing csmith seed failures."""
+    skills = [
+        COMPILER_DEBUG_SKILL,
+        Skill(
+            name="seed_fixer",
+            content="""You fix csmith-generated test failures.
+
+WORKFLOW:
+1. Get the test file from `csmith-reports/crash_<seed>.c` or `mismatch_<seed>.c`
+2. Compile with both gcc and ralph-cc, compare outputs
+3. Use IR dumps to find where ralph-cc diverges
+4. Make minimal fix - one bug, one fix
+5. Add seed to regression.sh
+6. Verify with `make test`
+
+Return a summary: what was wrong, what you fixed, file(s) changed.""",
+        ),
+    ]
+    return Agent(
+        llm=llm,
+        tools=[Tool(name=TerminalTool.name), Tool(name=FileEditorTool.name)],
+        agent_context=AgentContext(skills=skills),
+    )
+```
+
+The project defines four agent types:
+- **seed_fixer**: Fixes csmith-generated test failures
+- **feature_hardener**: Tests and hardens specific compiler features
+- **program_porter**: Ports real-world C programs to compile
+- **diagnostician**: Deep diagnosis of complex bugs others got stuck on
+
+### Agent Registration and Delegation
+
+Agents are registered so the orchestrator can spawn them by name:
+
+```python
+register_agent(
+    name="seed_fixer",
+    factory_func=create_seed_fixer_agent,
+    description="Fixes csmith seed failures by diagnosing and patching compiler bugs",
+)
+register_agent(
+    name="feature_hardener",
+    factory_func=create_feature_hardener_agent,
+    description="Hardens specific compiler features with edge case testing",
+)
+register_agent(
+    name="program_porter",
+    factory_func=create_program_porter_agent,
+    description="Ports real-world C programs to compile with ralph-cc",
+)
+register_agent(
+    name="diagnostician",
+    factory_func=create_diagnostician_agent,
+    description="Deep diagnosis of complex bugs that others got stuck on",
+)
+```
+
+### Dynamic Task Discovery
+
+HANS automatically discovers what needs to be done based on the current phase:
+
+```python
+def discover_tasks_for_phase(phase: str) -> dict[str, str]:
+    """Discover available tasks based on current phase."""
+    tasks = {}
+
+    if phase in ("STABILIZE", "EXPAND"):
+        # Find failing seeds from regression tests
+        seeds = discover_failing_seeds(limit=4)
+        for i, seed in enumerate(seeds):
+            tasks[f"fixer{i + 1}"] = (
+                f"Fix the compiler bug causing seed {seed} to fail."
+            )
+
+    elif phase == "HARDEN":
+        # Parse HARDEN_PLAN.md for unchecked items
+        plan_file = Path("plan/08-parallel-sdk-triage/HARDEN_PLAN.md")
+        if plan_file.exists():
+            content = plan_file.read_text()
+            for line in content.splitlines():
+                if "- [ ]" in line:
+                    feature = line.replace("- [ ]", "").strip()
+                    tasks[f"hardener{len(tasks) + 1}"] = f"Harden: {feature}"
+
+    elif phase == "REAL_PROGRAMS":
+        for prog in ["jsmn", "miniz", "sqlite", "lua"]:
+            tasks[f"porter{len(tasks) + 1}"] = f"Port {prog} to ralph-cc"
+
+    return tasks
+```
+
+This is **artifact-driven task discovery**—the agent reads markdown files and test results to determine what to work on, rather than being explicitly told.
+
+### The Orchestrator Pattern
+
+The main orchestrator spawns specialized sub-agents in parallel:
+
+```python
+def create_orchestrator_prompt(phase: str, tasks: dict[str, str]) -> str:
+    return f"""You are coordinating compiler debugging for ralph-cc.
+Current phase: {phase}
+
+STEP 1: Spawn {len(tasks)} sub-agents with these IDs and types:
+  IDs: {', '.join(tasks.keys())}
+
+STEP 2: Delegate these tasks in parallel:
+{chr(10).join(f'  - {aid}: {task}' for aid, task in tasks.items())}
+
+STEP 3: Wait for all results, then:
+  - Summarize what each agent fixed
+  - Run `make test` to verify all fixes work together
+  - If tests fail, identify which fix broke things
+
+STEP 4: Report final status - how many bugs fixed, any remaining issues.
+"""
+
+# Create orchestrator with delegation capability
+orchestrator = Agent(
+    llm=llm,
+    tools=[
+        Tool(name="DelegateTool"),
+        Tool(name=TerminalTool.name),
+        Tool(name=FileEditorTool.name),
+    ],
+    agent_context=AgentContext(
+        skills=[COMPILER_DEBUG_SKILL],
+        system_message_suffix="You coordinate multiple sub-agents working in parallel.",
+    ),
+)
+
+conversation = Conversation(
+    agent=orchestrator,
+    workspace=os.getcwd(),
+    visualizer=DelegationVisualizer(name="HANS"),
+)
+conversation.send_message(prompt)
+conversation.run()
+```
+
+### Pre-Flight and Post-Flight Operations
+
+HANS implements the same verification gates as traditional Ralph, but programmatically:
+
+```python
+# PRE-FLIGHT: Check for uncommitted changes
+if is_dirty():
+    if args.reset:
+        git_reset()  # Start clean
+    elif args.keep:
+        pass  # Continue with dirty state (risky)
+    else:
+        sys.exit(1)  # Cannot start dirty
+
+# Sync with remote
+git_pull()
+
+# ... agent work happens ...
+
+# POST-FLIGHT: Verify and commit
+if is_dirty():
+    if run_tests():  # make test passes
+        sh("git add -A")
+        commit_msg = generate_commit_message(llm)  # LLM writes commit message
+        sh(f'git commit -m "{commit_msg}"')
+        sh("git push origin main")
+    else:
+        console.print("[red]Tests failed - not committing[/red]")
+```
+
+The `generate_commit_message` function even uses the LLM to write conventional commit messages from the diff:
 
 ```python
 def generate_commit_message(llm: LLM) -> str:
-    _, diff = sh("git diff --cached")
-    # Use LLM to generate conventional commit message from diff
+    """Use a small agent to generate a commit message from git diff."""
+    _, diff = sh("git diff --cached --stat && echo '---' && git diff --cached")
+    if len(diff) > 8000:
+        diff = diff[:8000] + "\n... (truncated)"
+
+    agent = Agent(llm=llm, tools=[Tool(name=TerminalTool.name)])
+    conv = Conversation(agent=agent, workspace=os.getcwd())
+    conv.send_message(f"""Generate a git commit message for these changes.
+Format: <type>(<scope>): <subject>
+Diff:
+{diff}
+Reply with ONLY the commit message.""")
+    conv.run()
+    return get_agent_final_response(conv.state.events)
 ```
 
-**Pre/Post-Flight Operations**:
+### Running HANS
 
-```python
-if is_dirty():
-    if args.reset:
-        git_reset()
-    elif args.keep:
-        # Continue with dirty state
-    else:
-        sys.exit(1)  # Cannot start dirty
+The script supports multiple modes:
+
+```bash
+# Auto-discover tasks based on current phase
+uv run hans.py --phase stabilize
+
+# Custom task for all agents
+uv run hans.py --task "Fix these seeds: 12345, 67890, 11111, 22222"
+
+# Dry run to see what would be done
+uv run hans.py --dry-run
+
+# Control parallel agent count
+uv run hans.py --agents 8
+
+# Handle dirty state
+uv run hans.py --reset  # Discard uncommitted changes
+uv run hans.py --keep   # Continue with dirty state
 ```
 
-HANS is essentially a **more sophisticated Ralph**: multiple stateless agents, coordinated by an orchestrator, with the same "fresh context + artifact persistence" philosophy.
+### Why SDK Over Bash?
+
+The OpenHands SDK implementation provides several advantages over a raw bash loop:
+
+| Bash Loop | SDK Implementation |
+|-----------|-------------------|
+| Single agent | Multiple parallel agents |
+| No specialization | Agent types with domain skills |
+| Manual task selection | Dynamic task discovery |
+| External commit logic | Integrated verification gates |
+| Text-based prompts | Programmatic prompt construction |
+| No cost tracking | Built-in usage metrics |
+
+HANS is essentially a **more sophisticated Ralph**: multiple stateless agents, coordinated by an orchestrator, with the same "fresh context + artifact persistence" philosophy—but with the control and observability that comes from a proper programming interface.
+
+### Key Insight: Ralph Principles are Portable
+
+The ralph-cc-go experiment shows that Ralph's core principles—stateless iteration, verification gates, artifact persistence, one task at a time—can be implemented in multiple ways:
+
+1. **Bash loop** (`while :; do ... done`) - Simplest, zero dependencies
+2. **OpenHands SDK** (`hans.py`) - Programmatic control, parallelization
+3. **Other agent frameworks** - Same principles, different tooling
+
+The technique is not tied to any specific tool. It's a **pattern for organizing AI work**.
 
 ---
 
